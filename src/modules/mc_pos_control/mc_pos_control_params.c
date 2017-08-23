@@ -317,11 +317,11 @@ PARAM_DEFINE_FLOAT(MPC_TILTMAX_LND, 12.0f);
  * Landing descend rate
  *
  * @unit m/s
- * @min 0.6
+ * @min 0.2
  * @decimal 1
  * @group Multicopter Position Control
  */
-PARAM_DEFINE_FLOAT(MPC_LAND_SPEED, 0.7f);
+PARAM_DEFINE_FLOAT(MPC_LAND_SPEED, 0.5f);
 
 /**
  * Takeoff climb rate
@@ -531,3 +531,14 @@ PARAM_DEFINE_FLOAT(MPC_LAND_ALT2, 5.0f);
  * @group Multicopter Position Control
  */
 PARAM_DEFINE_FLOAT(MPC_TKO_RAMP_T, 0.4f);
+
+/**
+ * Wall contact enable/disable
+ *
+ * @min 0
+ * @max 1
+ * @boolean
+ * @group Multicopter Position Control
+ */
+PARAM_DEFINE_INT32(MPC_WALL_CONTACT, 0);
+

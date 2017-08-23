@@ -183,6 +183,9 @@ private:
 		param_t acc_down_max;
 		param_t alt_mode;
 		param_t opt_recover;
+		//sagiri
+		param_t wall_contact;
+
 	}		_params_handles;		/**< handles for interesting parameters */
 
 	struct {
@@ -210,6 +213,8 @@ private:
 		uint32_t alt_mode;
 
 		int opt_recover;
+		//sagiri
+		int wall_contact;
 
 		math::Vector<3> pos_p;
 		math::Vector<3> vel_p;
@@ -241,6 +246,7 @@ private:
 	bool _hold_offboard_z = false;
 	bool _limit_vel_xy = false;
 
+	
 	math::Vector<3> _thrust_int;
 
 	math::Vector<3> _pos;
@@ -255,7 +261,14 @@ private:
 	math::Matrix<3, 3> _R;			/**< rotation matrix from attitude quaternions */
 	float _yaw;				/**< yaw angle (euler) */
 	float _yaw_takeoff;	/**< home yaw angle present when vehicle was taking off (euler) */
+	bool _in_landing;	/**< the vehicle is in the landing descent */
+	bool _lnd_reached_ground; /**< controller assumes the vehicle has reached the ground after landing */
+	float _vel_z_lp;
+	float _acc_z_lp;
 	float _vel_max_xy;  /**< equal to vel_max except in auto mode when close to target */
+
+	//sagiri
+	float wall_contact_int;
 
 	bool _in_takeoff = false; /**< flag for smooth velocity setpoint takeoff ramp */
 	float _takeoff_vel_limit; /**< velocity limit value which gets ramped up */
@@ -424,6 +437,10 @@ MulticopterPositionControl::MulticopterPositionControl() :
 	_pos_first_nonfinite(true),
 	_yaw(0.0f),
 	_yaw_takeoff(0.0f),
+	_in_landing(false),
+	_lnd_reached_ground(false),
+	_vel_z_lp(0),
+	_acc_z_lp(0),
 	_vel_max_xy(0.0f),
 	_takeoff_vel_limit(0.0f),
 	_z_reset_counter(0),
@@ -452,6 +469,8 @@ MulticopterPositionControl::MulticopterPositionControl() :
 	_vel_err_d.zero();
 	_curr_pos_sp.zero();
 
+	//sagiri
+	wall_contact_int = 0.0f;
 	_R.identity();
 	_R_setpoint.identity();
 
@@ -493,9 +512,10 @@ MulticopterPositionControl::MulticopterPositionControl() :
 	_params_handles.acc_down_max = param_find("MPC_ACC_DOWN_MAX");
 	_params_handles.alt_mode = param_find("MPC_ALT_MODE");
 	_params_handles.opt_recover = param_find("VT_OPT_RECOV_EN");
-
+	//sagiri
+	_params_handles.wall_contact = param_find("MPC_WALL_CONTACT");		
 	/* fetch initial parameter values */
-	parameters_update(true);
+	parameters_update(true);	
 }
 
 MulticopterPositionControl::~MulticopterPositionControl()
@@ -614,6 +634,8 @@ MulticopterPositionControl::parameters_update(bool force)
 		int i;
 		param_get(_params_handles.opt_recover, &i);
 		_params.opt_recover = i;
+		param_get(_params_handles.wall_contact, &i);
+		_params.wall_contact = i;
 
 		/* mc attitude control parameters*/
 		/* manual control scale */
@@ -1791,7 +1813,7 @@ MulticopterPositionControl::calculate_thrust_setpoint(float dt)
 	}
 
 	/* velocity error */
-	math::Vector<3> vel_err = _vel_sp - _vel;
+	math::Vector<3> vel_err;
 
 	/* thrust vector in NED frame */
 	math::Vector<3> thrust_sp;
@@ -1800,8 +1822,38 @@ MulticopterPositionControl::calculate_thrust_setpoint(float dt)
 		thrust_sp = math::Vector<3>(_pos_sp_triplet.current.a_x, _pos_sp_triplet.current.a_y, _pos_sp_triplet.current.a_z);
 
 	} else {
+		vel_err = _vel_sp - _vel;
 		thrust_sp = vel_err.emult(_params.vel_p) + _vel_err_d.emult(_params.vel_d)
 			    + _thrust_int - math::Vector<3>(0.0f, 0.0f, _params.thr_hover);
+		//sagiri
+		//warnx("vel(0) : %d", (int)(_vel(0)*1000000.0f));
+		if(_params.wall_contact && _control_mode.flag_control_position_enabled && _control_mode.flag_control_manual_enabled){
+			if( _vel(0) < 0.75f && _vel(0) > -0.5f){
+
+				thrust_sp(0) = 0.02f * _params.vel_p(0);
+
+				if( _vel(0) < -0.1f){
+					if(wall_contact_int < thrust_sp(0)){
+						wall_contact_int += 0.01f * thrust_sp(0);
+					}
+					else{
+						//warnx("2x thrust_sp(0) now");
+					}					
+				}
+				if( _vel(0) >= 0.5f && _vel(0) < 0.75f){
+					wall_contact_int -= 0.01f * thrust_sp(0);
+					//warnx("reduce velocity");
+				}
+				else{
+					wall_contact_int = 0;
+				}
+				thrust_sp(0) += wall_contact_int;
+				_thrust_int(0) = 0.0f;
+				_pos_sp(0) = _pos(0);
+				_vel_sp(0) = 0.0f;
+			}
+
+		}
 	}
 
 	if (!_control_mode.flag_control_velocity_enabled && !_control_mode.flag_control_acceleration_enabled) {
@@ -1809,31 +1861,27 @@ MulticopterPositionControl::calculate_thrust_setpoint(float dt)
 		thrust_sp(1) = 0.0f;
 	}
 
-	if (!in_auto_takeoff()) {
-		if (_vehicle_land_detected.ground_contact) {
-			/* if still or already on ground command zero xy thrust_sp in body
-			 * frame to consider uneven ground */
+	/* if still or already on ground command zero xy velcoity and zero xy thrust_sp in body frame to consider uneven ground */
+	if (_vehicle_land_detected.ground_contact && !in_auto_takeoff()) {
 
-			/* thrust setpoint in body frame*/
-			math::Vector<3> thrust_sp_body = _R.transposed() * thrust_sp;
+		/* thrust setpoint in body frame*/
+		math::Vector<3> thrust_sp_body = _R.transposed() * thrust_sp;
 
-			/* we dont want to make any correction in body x and y*/
-			thrust_sp_body(0) = 0.0f;
-			thrust_sp_body(1) = 0.0f;
+		/* we dont want to make any correction in body x and y*/
+		thrust_sp_body(0) = 0.0f;
+		thrust_sp_body(1) = 0.0f;
 
-			/* make sure z component of thrust_sp_body is larger than 0 (positive thrust is downward) */
-			thrust_sp_body(2) = thrust_sp(2) > 0.0f ? thrust_sp(2) : 0.0f;
+		/* make sure z component of thrust_sp_body is larger than 0 (positive thrust is downward) */
+		thrust_sp_body(2) = thrust_sp(2) > 0.0f ? thrust_sp(2) : 0.0f;
 
-			/* convert back to local frame (NED) */
-			thrust_sp = _R * thrust_sp_body;
-		}
+		/* convert back to local frame (NED) */
+		thrust_sp = _R * thrust_sp_body;
 
-		if (_vehicle_land_detected.maybe_landed) {
-			/* we set thrust to zero
-			 * this will help to decide if we are actually landed or not
-			 */
-			thrust_sp.zero();
-		}
+		/* set velocity setpoint to zero and reset position */
+		_vel_sp(0) = 0.0f;
+		_vel_sp(1) = 0.0f;
+		_pos_sp(0) = _pos(0);
+		_pos_sp(1) = _pos(1);
 	}
 
 	if (!_control_mode.flag_control_climb_rate_enabled && !_control_mode.flag_control_acceleration_enabled) {
@@ -1855,6 +1903,13 @@ MulticopterPositionControl::calculate_thrust_setpoint(float dt)
 	float tilt_max = _params.tilt_max_air;
 	float thr_max = _params.thr_max;
 
+	/* filter vel_z over 1/8sec */
+	_vel_z_lp = _vel_z_lp * (1.0f - dt * 8.0f) + dt * 8.0f * _vel(2);
+
+	/* filter vel_z change over 1/8sec */
+	float vel_z_change = (_vel(2) - _vel_prev(2)) / dt;
+	_acc_z_lp = _acc_z_lp * (1.0f - dt * 8.0f) + dt * 8.0f * vel_z_change;
+
 	// We can only run the control if we're already in-air, have a takeoff setpoint,
 	// or if we're in offboard control.
 	// Otherwise, we should just bail out
@@ -1868,6 +1923,59 @@ MulticopterPositionControl::calculate_thrust_setpoint(float dt)
 		/* adjust limits for landing mode */
 		/* limit max tilt and min lift when landing */
 		tilt_max = _params.tilt_max_land;
+
+		if (thr_min < 0.0f) {
+			thr_min = 0.0f;
+		}
+
+		/* descend stabilized, we're landing */
+		if (!_in_landing && !_lnd_reached_ground
+		    && (fabsf(_acc_z_lp) < 0.1f)
+		    && _vel_z_lp > 0.6f * _params.land_speed) {
+
+			_in_landing = true;
+		}
+
+		float land_z_threshold = 0.1f;
+
+		/* assume ground, cut thrust */
+		if (_in_landing
+		    && _vel_z_lp < land_z_threshold) {
+			thr_max = 0.0f;
+			_in_landing = false;
+			_lnd_reached_ground = true;
+
+		} else if (_in_landing
+			   && _vel_z_lp < math::min(0.3f * _params.land_speed, 2.5f * land_z_threshold)) {
+			/* not on ground but with ground contact, stop position and velocity control */
+			thrust_sp(0) = 0.0f;
+			thrust_sp(1) = 0.0f;
+			_vel_sp(0) = _vel(0);
+			_vel_sp(1) = _vel(1);
+			_pos_sp(0) = _pos(0);
+			_pos_sp(1) = _pos(1);
+		}
+
+		/* once we assumed to have reached the ground always cut the thrust.
+			Only free fall detection below can revoke this
+		*/
+		if (!_in_landing && _lnd_reached_ground) {
+			thr_max = 0.0f;
+		}
+
+		/* if we suddenly fall, reset landing logic and remove thrust limit */
+		if (_lnd_reached_ground
+		    /* XXX: magic value, assuming free fall above 4 m/s^2 acceleration */
+		    && (_acc_z_lp > 4.0f || _vel_z_lp > 2.0f * _params.land_speed)) {
+
+			thr_max = _params.thr_max;
+			_in_landing = true;
+			_lnd_reached_ground = false;
+		}
+
+	} else {
+		_in_landing = false;
+		_lnd_reached_ground = false;
 	}
 
 	/* limit min lift */
@@ -2367,7 +2475,7 @@ MulticopterPositionControl::start()
 	/* start the task */
 	_control_task = px4_task_spawn_cmd("mc_pos_control",
 					   SCHED_DEFAULT,
-					   SCHED_PRIORITY_POSITION_CONTROL,
+					   SCHED_PRIORITY_MAX - 5,
 					   1900,
 					   (px4_main_t)&MulticopterPositionControl::task_main_trampoline,
 					   nullptr);

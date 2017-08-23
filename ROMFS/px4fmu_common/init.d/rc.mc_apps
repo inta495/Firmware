@@ -43,6 +43,11 @@ mc_att_control start
 mc_pos_control start
 
 #
+# Start Humming system
+#
+humming start
+
+#
 # Start Land Detector
 #
 land_detector start multicopter
