@@ -156,7 +156,7 @@ private:
 	/**
 	 * Check for parameter update and handle it.
 	 */
-	void		parameter_update_poll();
+	void		parameter_update_poll(bool force);
 
 	void		task_main();
 
@@ -241,16 +241,17 @@ Humming::parameters_update()
 }
 
 void
-Humming::parameter_update_poll()
+Humming::parameter_update_poll(bool force)
 {
 	bool updated;
-
+	struct parameter_update_s param_update;
 	/* Check if parameters have changed */
 	orb_check(_params_sub, &updated);
 
-	if (updated) {
-		struct parameter_update_s param_update;
-		orb_copy(ORB_ID(parameter_update), _params_sub, &param_update);
+	if (updated) {		
+		orb_copy(ORB_ID(parameter_update), _params_sub, &param_update);		
+	}
+	if (updated || force){		
 		parameters_update();
 	}
 }
@@ -444,7 +445,7 @@ Humming::task_main()
 		/* vehicle commands updated */
 		if (fds[0].revents & POLLIN) {
 
-			parameter_update_poll();
+			parameter_update_poll(true);
 
 			orb_copy(ORB_ID(vehicle_command), _command_sub, &_command);
 			handle_command(&_command);			
@@ -452,6 +453,8 @@ Humming::task_main()
 		}
 
 		while( _humming_sys_start ){
+
+			parameter_update_poll(true);
 
 			orb_check(_command_sub, &updated);
 
@@ -463,12 +466,14 @@ Humming::task_main()
 			
 			for (uint8_t i = 0; i < 4; i++)
 			{
-				if( actuators_setpoint[i] > _actuators.control[i] ){
+				if( actuators_setpoint[i] - _actuators.control[i] > 0 ){
 					_actuators.control[i] = _actuators.control[i] + _params.act_change_rate ;
 				}
 				else if( actuators_setpoint[i] < _actuators.control[i] ){
 					_actuators.control[i] = _actuators.control[i] - _params.act_change_rate ;
 				}
+				float error = actuators_setpoint[i] - _actuators.control[i] ;
+				_actuators.control[i] =  _actuators.control[i] + math::constrain( error , - _params.act_change_rate , + _params.act_change_rate);
 			}
 			actuators_publish();
 

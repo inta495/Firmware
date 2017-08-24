@@ -828,7 +828,7 @@ bool handle_command(struct vehicle_status_s *status_local, const struct safety_s
 					/* POSCTL */
 					reset_posvel_validity(global_pos, local_pos, changed);
 					main_ret = main_state_transition(status_local, commander_state_s::MAIN_STATE_POSCTL, main_state_prev, &status_flags, &internal_state);
-
+					
 				} else if (custom_main_mode == PX4_CUSTOM_MAIN_MODE_AUTO) {
 					/* AUTO */
 					if (custom_sub_mode > 0) {
