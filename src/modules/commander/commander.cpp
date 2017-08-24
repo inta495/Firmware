@@ -596,6 +596,11 @@ int commander_main(int argc, char *argv[])
 				new_main_state = commander_state_s::MAIN_STATE_STAB;
 			} else if (!strcmp(argv[2], "rattitude")) {
 				new_main_state = commander_state_s::MAIN_STATE_RATTITUDE;
+			/*
+			 * humming
+			 */
+			} else if (!strcmp(argv[2], "humming")) {
+				new_main_state = commander_state_s::MAIN_STATE_HUMMING;
 			} else if (!strcmp(argv[2], "auto:takeoff")) {
 				new_main_state = commander_state_s::MAIN_STATE_AUTO_TAKEOFF;
 			} else if (!strcmp(argv[2], "auto:land")) {
@@ -874,6 +879,12 @@ bool handle_command(struct vehicle_status_s *status_local, const struct safety_s
 				} else if (custom_main_mode == PX4_CUSTOM_MAIN_MODE_RATTITUDE) {
 					/* RATTITUDE */
 					main_ret = main_state_transition(status_local, commander_state_s::MAIN_STATE_RATTITUDE, main_state_prev, &status_flags, &internal_state);
+				/*
+				 * humming
+				 */
+				} else if (custom_main_mode == PX4_CUSTOM_MAIN_MODE_HUMMING) {
+					/* HUMMING */
+					main_ret = main_state_transition(status_local, commander_state_s::MAIN_STATE_HUMMING, main_state_prev, &status_flags, &internal_state);
 
 				} else if (custom_main_mode == PX4_CUSTOM_MAIN_MODE_STABILIZED) {
 					/* STABILIZED */
@@ -947,7 +958,8 @@ bool handle_command(struct vehicle_status_s *status_local, const struct safety_s
 						&& (status_local->nav_state == vehicle_status_s::NAVIGATION_STATE_MANUAL
 						|| status_local->nav_state == vehicle_status_s::NAVIGATION_STATE_ACRO
 						|| status_local->nav_state == vehicle_status_s::NAVIGATION_STATE_STAB
-						|| status_local->nav_state == vehicle_status_s::NAVIGATION_STATE_RATTITUDE)
+						|| status_local->nav_state == vehicle_status_s::NAVIGATION_STATE_RATTITUDE
+						|| status_local->nav_state == vehicle_status_s::NAVIGATION_STATE_HUMMING)
 						&& (sp_man.z > 0.1f)) {
 
 						mavlink_log_critical(&mavlink_log_pub, "Arming DENIED. Manual throttle non-zero.");
@@ -1420,6 +1432,10 @@ int commander_thread_main(int argc, char *argv[])
 	// nav_states_str[vehicle_status_s::NAVIGATION_STATE_DESCEND]		= "DESCEND";
 	// nav_states_str[vehicle_status_s::NAVIGATION_STATE_TERMINATION]		= "TERMINATION";
 	// nav_states_str[vehicle_status_s::NAVIGATION_STATE_OFFBOARD]		= "OFFBOARD";
+	/*
+	 * humming
+	 */
+	// nav_states_str[vehicle_status_s::NAVIGATION_STATE_HUMMING]		= "HUMMING";
 
 	/* pthread for slow low prio thread */
 	pthread_t commander_low_prio_thread;
@@ -2601,6 +2617,7 @@ int commander_thread_main(int argc, char *argv[])
 			main_state_before_rtl == commander_state_s::MAIN_STATE_POSCTL ||
 			main_state_before_rtl == commander_state_s::MAIN_STATE_ACRO ||
 			main_state_before_rtl == commander_state_s::MAIN_STATE_RATTITUDE ||
+			main_state_before_rtl == commander_state_s::MAIN_STATE_HUMMING ||
 			main_state_before_rtl == commander_state_s::MAIN_STATE_STAB))) {
 
 			// transition to previous state if sticks are touched
@@ -2771,6 +2788,7 @@ int commander_thread_main(int argc, char *argv[])
 						&& (internal_state.main_state != commander_state_s::MAIN_STATE_STAB)
 						&& (internal_state.main_state != commander_state_s::MAIN_STATE_ALTCTL)
 						&& (internal_state.main_state != commander_state_s::MAIN_STATE_POSCTL)
+						&& (internal_state.main_state != commander_state_s::MAIN_STATE_HUMMING)
 						&& (internal_state.main_state != commander_state_s::MAIN_STATE_RATTITUDE)
 						) {
 						print_reject_arm("NOT ARMING: Switch to a manual mode first.");
@@ -3013,6 +3031,7 @@ int commander_thread_main(int argc, char *argv[])
 			    internal_state.main_state != commander_state_s::MAIN_STATE_RATTITUDE &&
 			    internal_state.main_state != commander_state_s::MAIN_STATE_STAB &&
 			    internal_state.main_state != commander_state_s::MAIN_STATE_ALTCTL &&
+			    internal_state.main_state != commander_state_s::MAIN_STATE_HUMMING &&
 			    internal_state.main_state != commander_state_s::MAIN_STATE_POSCTL &&
 			    ((status.data_link_lost && status_flags.gps_failure) ||
 			     (status_flags.data_link_lost_cmd && status_flags.gps_failure_cmd))) {
@@ -3038,6 +3057,7 @@ int commander_thread_main(int argc, char *argv[])
 			     internal_state.main_state == commander_state_s::MAIN_STATE_MANUAL ||
 			     internal_state.main_state == commander_state_s::MAIN_STATE_STAB ||
 			     internal_state.main_state == commander_state_s::MAIN_STATE_ALTCTL ||
+			     internal_state.main_state == commander_state_s::MAIN_STATE_HUMMING ||
 			     internal_state.main_state == commander_state_s::MAIN_STATE_POSCTL) &&
 			    ((status.rc_signal_lost && status_flags.gps_failure) ||
 			     (status_flags.rc_signal_lost_cmd && status_flags.gps_failure_cmd))) {
@@ -3426,6 +3446,7 @@ set_main_state_rc(struct vehicle_status_s *status_local, vehicle_global_position
 		 (_last_sp_man.mode_switch == sp_man.mode_switch) &&
 		 (_last_sp_man.acro_switch == sp_man.acro_switch) &&
 		 (_last_sp_man.rattitude_switch == sp_man.rattitude_switch) &&
+		 (_last_sp_man.humming_switch == sp_man.humming_switch) &&
 		 (_last_sp_man.posctl_switch == sp_man.posctl_switch) &&
 		 (_last_sp_man.loiter_switch == sp_man.loiter_switch) &&
 		 (_last_sp_man.mode_slot == sp_man.mode_slot) &&
@@ -3440,6 +3461,7 @@ set_main_state_rc(struct vehicle_status_s *status_local, vehicle_global_position
 			&& (internal_state.main_state == commander_state_s::MAIN_STATE_MANUAL ||
 			internal_state.main_state == commander_state_s::MAIN_STATE_ALTCTL ||
 			internal_state.main_state == commander_state_s::MAIN_STATE_POSCTL ||
+			internal_state.main_state == commander_state_s::MAIN_STATE_HUMMING ||
 			internal_state.main_state == commander_state_s::MAIN_STATE_ACRO ||
 			internal_state.main_state == commander_state_s::MAIN_STATE_RATTITUDE ||
 			internal_state.main_state == commander_state_s::MAIN_STATE_STAB)) {
@@ -3682,6 +3704,15 @@ set_main_state_rc(struct vehicle_status_s *status_local, vehicle_global_position
 					res = main_state_transition(status_local, commander_state_s::MAIN_STATE_STAB, main_state_prev, &status_flags, &internal_state);
 				}
 
+			} else if (sp_man.humming_switch == manual_control_setpoint_s::SWITCH_POS_ON) {
+				/* Similar to acro transitions for multirotors.  FW aircraft don't need a
+				 * humming mode.*/
+				if (status.is_rotary_wing) {
+					res = main_state_transition(status_local, commander_state_s::MAIN_STATE_HUMMING, main_state_prev, &status_flags, &internal_state);
+
+				} else {
+					res = main_state_transition(status_local, commander_state_s::MAIN_STATE_STAB, main_state_prev, &status_flags, &internal_state);
+				} 
 			} else {
 				res = main_state_transition(status_local, commander_state_s::MAIN_STATE_MANUAL, main_state_prev, &status_flags, &internal_state);
 			}
@@ -3699,6 +3730,9 @@ set_main_state_rc(struct vehicle_status_s *status_local, vehicle_global_position
 
 			} else if (sp_man.rattitude_switch == manual_control_setpoint_s::SWITCH_POS_ON) {
 				res = main_state_transition(status_local, commander_state_s::MAIN_STATE_RATTITUDE, main_state_prev, &status_flags, &internal_state);
+
+			} else if (sp_man.humming_switch == manual_control_setpoint_s::SWITCH_POS_ON) {
+				res = main_state_transition(status_local, commander_state_s::MAIN_STATE_HUMMING, main_state_prev, &status_flags, &internal_state);
 
 			} else if (sp_man.stab_switch == manual_control_setpoint_s::SWITCH_POS_ON) {
 				res = main_state_transition(status_local, commander_state_s::MAIN_STATE_STAB, main_state_prev, &status_flags, &internal_state);
@@ -3938,6 +3972,20 @@ set_control_mode()
 		control_mode.flag_control_termination_enabled = false;
 		break;
 
+	case vehicle_status_s::NAVIGATION_STATE_HUMMING:
+		control_mode.flag_control_manual_enabled = true;
+		control_mode.flag_control_auto_enabled = false;
+		control_mode.flag_control_rates_enabled = true;
+		control_mode.flag_control_attitude_enabled = true;
+		control_mode.flag_control_rattitude_enabled = false;
+		control_mode.flag_control_altitude_enabled = true;
+		control_mode.flag_control_climb_rate_enabled = true;
+		control_mode.flag_control_position_enabled = !status.in_transition_mode;
+		control_mode.flag_control_velocity_enabled = !status.in_transition_mode;
+		control_mode.flag_control_acceleration_enabled = false;
+		control_mode.flag_control_termination_enabled = false;
+		break;
+
 	case vehicle_status_s::NAVIGATION_STATE_AUTO_RTL:
 	case vehicle_status_s::NAVIGATION_STATE_AUTO_RCRECOVER:
 		/* override is not ok for the RTL and recovery mode */
@@ -4042,6 +4090,7 @@ set_control_mode()
 			!offboard_control_mode.ignore_acceleration_force;
 
 		control_mode.flag_control_rattitude_enabled = false;
+		control_mode.flag_control_humming_enabled = false;
 
 		control_mode.flag_control_acceleration_enabled = !offboard_control_mode.ignore_acceleration_force &&
 		  !status.in_transition_mode;

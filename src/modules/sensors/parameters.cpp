@@ -95,6 +95,10 @@ int initialize_parameter_handles(ParameterHandles &parameter_handles)
 	parameter_handles.rc_map_gear_sw = param_find("RC_MAP_GEAR_SW");
 	parameter_handles.rc_map_stab_sw = param_find("RC_MAP_STAB_SW");
 	parameter_handles.rc_map_man_sw = param_find("RC_MAP_MAN_SW");
+	/*
+	 * humming
+	 */
+	parameter_handles.rc_map_humming_sw = param_find("RC_MAP_HUM_SW");
 
 	parameter_handles.rc_map_aux1 = param_find("RC_MAP_AUX1");
 	parameter_handles.rc_map_aux2 = param_find("RC_MAP_AUX2");
@@ -128,6 +132,10 @@ int initialize_parameter_handles(ParameterHandles &parameter_handles)
 	parameter_handles.rc_gear_th = param_find("RC_GEAR_TH");
 	parameter_handles.rc_stab_th = param_find("RC_STAB_TH");
 	parameter_handles.rc_man_th = param_find("RC_MAN_TH");
+	/*
+	 * humming
+	 */
+	parameter_handles.rc_humming_th = param_find("RC_HUM_TH");
 
 	/* RC low pass filter configuration */
 	parameter_handles.rc_flt_smp_rate = param_find("RC_FLT_SMP_RATE");

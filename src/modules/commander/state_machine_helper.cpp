@@ -380,7 +380,7 @@ main_state_transition(struct vehicle_status_s *status, main_state_t new_main_sta
 		}
 
 		break;
-
+	case commander_state_s::MAIN_STATE_HUMMING:
 	case commander_state_s::MAIN_STATE_POSCTL:
 
 		/* need at minimum local position estimate */
@@ -616,6 +616,7 @@ bool set_nav_state(struct vehicle_status_s *status,
 
 		break;
 
+	case commander_state_s::MAIN_STATE_HUMMING:
 	case commander_state_s::MAIN_STATE_POSCTL: {
 
 			if (rc_lost && is_armed) {

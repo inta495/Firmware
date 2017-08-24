@@ -1827,7 +1827,8 @@ MulticopterPositionControl::calculate_thrust_setpoint(float dt)
 			    + _thrust_int - math::Vector<3>(0.0f, 0.0f, _params.thr_hover);
 		//sagiri
 		//warnx("vel(0) : %d", (int)(_vel(0)*1000000.0f));
-		if(_params.wall_contact && _control_mode.flag_control_position_enabled && _control_mode.flag_control_manual_enabled){
+		if(_params.wall_contact && _control_mode.flag_control_humming_enabled){
+			//mavlink_log_info(&_mavlink_log_pub, "[mpc] use wall_contact controller");
 			if( _vel(0) < 0.75f && _vel(0) > -0.5f){
 
 				thrust_sp(0) = 0.02f * _params.vel_p(0);

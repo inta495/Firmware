@@ -124,7 +124,7 @@ private:
 
 	int		_command_sub;
 	struct vehicle_command_s	_command;
-
+	
 	int		_params_sub;			/**< parameter updates subscription */
 	
 	bool 	_humming_sys_start;

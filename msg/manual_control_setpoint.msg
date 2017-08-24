@@ -58,8 +58,10 @@ uint8 offboard_switch	 	 # offboard 2 position switch (optional): _NORMAL_, OFFB
 uint8 kill_switch		 # throttle kill: _NORMAL_, KILL
 uint8 arm_switch		 # arm/disarm switch: _DISARMED_, ARMED
 uint8 transition_switch	 # VTOL transition switch: _HOVER, FORWARD_FLIGHT
-uint8 gear_switch	 # landing gear switch: _DOWN_, UP
+uint8 gear_switch	     # landing gear switch: _DOWN_, UP
 int8 mode_slot			 # the slot a specific model selector is in
 uint8 data_source		 # where this input is coming from
 uint8 stab_switch 		 # stabilize switch (only relevant for fixed wings, optional): _MANUAL, STABILIZED
 uint8 man_switch		 # manual switch (only relevant for fixed wings, optional): _STABILIZED_, MANUAL
+
+uint8 humming_switch		 # humming control 2 position switch : _POSCTL , HUMMING
