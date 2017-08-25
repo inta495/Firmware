@@ -3984,6 +3984,8 @@ set_control_mode()
 		control_mode.flag_control_velocity_enabled = !status.in_transition_mode;
 		control_mode.flag_control_acceleration_enabled = false;
 		control_mode.flag_control_termination_enabled = false;
+		control_mode.flag_control_humming_enabled = true;
+		mavlink_log_critical(&mavlink_log_pub, "humming is running");
 		break;
 
 	case vehicle_status_s::NAVIGATION_STATE_AUTO_RTL:
