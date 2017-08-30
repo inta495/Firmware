@@ -958,8 +958,7 @@ bool handle_command(struct vehicle_status_s *status_local, const struct safety_s
 						&& (status_local->nav_state == vehicle_status_s::NAVIGATION_STATE_MANUAL
 						|| status_local->nav_state == vehicle_status_s::NAVIGATION_STATE_ACRO
 						|| status_local->nav_state == vehicle_status_s::NAVIGATION_STATE_STAB
-						|| status_local->nav_state == vehicle_status_s::NAVIGATION_STATE_RATTITUDE
-						|| status_local->nav_state == vehicle_status_s::NAVIGATION_STATE_HUMMING)
+						|| status_local->nav_state == vehicle_status_s::NAVIGATION_STATE_RATTITUDE)
 						&& (sp_man.z > 0.1f)) {
 
 						mavlink_log_critical(&mavlink_log_pub, "Arming DENIED. Manual throttle non-zero.");
@@ -2788,7 +2787,6 @@ int commander_thread_main(int argc, char *argv[])
 						&& (internal_state.main_state != commander_state_s::MAIN_STATE_STAB)
 						&& (internal_state.main_state != commander_state_s::MAIN_STATE_ALTCTL)
 						&& (internal_state.main_state != commander_state_s::MAIN_STATE_POSCTL)
-						&& (internal_state.main_state != commander_state_s::MAIN_STATE_HUMMING)
 						&& (internal_state.main_state != commander_state_s::MAIN_STATE_RATTITUDE)
 						) {
 						print_reject_arm("NOT ARMING: Switch to a manual mode first.");

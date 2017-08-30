@@ -572,6 +572,8 @@ bool set_nav_state(struct vehicle_status_s *status,
 	reset_link_loss_globals(armed, old_failsafe, rc_loss_act);
 	reset_link_loss_globals(armed, old_failsafe, data_link_loss_act);
 
+	// humming flag
+	bool is_humming = false;
 	/* evaluate main state to decide in normal (non-failsafe) mode */
 	switch (internal_state->main_state) {
 	case commander_state_s::MAIN_STATE_ACRO:
@@ -617,6 +619,7 @@ bool set_nav_state(struct vehicle_status_s *status,
 		break;
 
 	case commander_state_s::MAIN_STATE_HUMMING:
+		is_humming = true;
 	case commander_state_s::MAIN_STATE_POSCTL: {
 
 			if (rc_lost && is_armed) {
@@ -631,6 +634,8 @@ bool set_nav_state(struct vehicle_status_s *status,
 
 			} else if (is_armed && check_invalid_pos_nav_state(status, old_failsafe, mavlink_log_pub, status_flags, !(posctl_nav_loss_act == 1), !status->is_rotary_wing)) {
 				// nothing to do - everything done in check_invalid_pos_nav_state
+			} else if (is_humming == true){
+				status->nav_state = vehicle_status_s::NAVIGATION_STATE_HUMMING;
 			} else {
 				status->nav_state = vehicle_status_s::NAVIGATION_STATE_POSCTL;
 			}
