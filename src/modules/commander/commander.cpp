@@ -596,11 +596,6 @@ int commander_main(int argc, char *argv[])
 				new_main_state = commander_state_s::MAIN_STATE_STAB;
 			} else if (!strcmp(argv[2], "rattitude")) {
 				new_main_state = commander_state_s::MAIN_STATE_RATTITUDE;
-			/*
-			 * humming
-			 */
-			} else if (!strcmp(argv[2], "humming")) {
-				new_main_state = commander_state_s::MAIN_STATE_HUMMING;
 			} else if (!strcmp(argv[2], "auto:takeoff")) {
 				new_main_state = commander_state_s::MAIN_STATE_AUTO_TAKEOFF;
 			} else if (!strcmp(argv[2], "auto:land")) {
@@ -829,12 +824,6 @@ bool handle_command(struct vehicle_status_s *status_local, const struct safety_s
 					/* ALTCTL */
 					main_ret = main_state_transition(status_local, commander_state_s::MAIN_STATE_ALTCTL, main_state_prev, &status_flags, &internal_state);
 
-				} else if (custom_main_mode == PX4_CUSTOM_MAIN_MODE_HUMMING) {
-					/* HUMMING */
-					reset_posvel_validity(global_pos, local_pos, changed);
-					main_ret = main_state_transition(status_local, commander_state_s::MAIN_STATE_POSCTL, main_state_prev, &status_flags, &internal_state);
-					main_ret = main_state_transition(status_local, commander_state_s::MAIN_STATE_HUMMING, main_state_prev, &status_flags, &internal_state);
-
 				} else if (custom_main_mode == PX4_CUSTOM_MAIN_MODE_POSCTL) {
 					/* POSCTL */
 					reset_posvel_validity(global_pos, local_pos, changed);
@@ -885,7 +874,7 @@ bool handle_command(struct vehicle_status_s *status_local, const struct safety_s
 				} else if (custom_main_mode == PX4_CUSTOM_MAIN_MODE_RATTITUDE) {
 					/* RATTITUDE */
 					main_ret = main_state_transition(status_local, commander_state_s::MAIN_STATE_RATTITUDE, main_state_prev, &status_flags, &internal_state);
-				
+
 				} else if (custom_main_mode == PX4_CUSTOM_MAIN_MODE_STABILIZED) {
 					/* STABILIZED */
 					main_ret = main_state_transition(status_local, commander_state_s::MAIN_STATE_STAB, main_state_prev, &status_flags, &internal_state);
@@ -1431,10 +1420,6 @@ int commander_thread_main(int argc, char *argv[])
 	// nav_states_str[vehicle_status_s::NAVIGATION_STATE_DESCEND]		= "DESCEND";
 	// nav_states_str[vehicle_status_s::NAVIGATION_STATE_TERMINATION]		= "TERMINATION";
 	// nav_states_str[vehicle_status_s::NAVIGATION_STATE_OFFBOARD]		= "OFFBOARD";
-	/*
-	 * humming
-	 */
-	// nav_states_str[vehicle_status_s::NAVIGATION_STATE_HUMMING]		= "HUMMING";
 
 	/* pthread for slow low prio thread */
 	pthread_t commander_low_prio_thread;
@@ -2616,7 +2601,6 @@ int commander_thread_main(int argc, char *argv[])
 			main_state_before_rtl == commander_state_s::MAIN_STATE_POSCTL ||
 			main_state_before_rtl == commander_state_s::MAIN_STATE_ACRO ||
 			main_state_before_rtl == commander_state_s::MAIN_STATE_RATTITUDE ||
-			main_state_before_rtl == commander_state_s::MAIN_STATE_HUMMING ||
 			main_state_before_rtl == commander_state_s::MAIN_STATE_STAB))) {
 
 			// transition to previous state if sticks are touched
@@ -3029,7 +3013,6 @@ int commander_thread_main(int argc, char *argv[])
 			    internal_state.main_state != commander_state_s::MAIN_STATE_RATTITUDE &&
 			    internal_state.main_state != commander_state_s::MAIN_STATE_STAB &&
 			    internal_state.main_state != commander_state_s::MAIN_STATE_ALTCTL &&
-			    internal_state.main_state != commander_state_s::MAIN_STATE_HUMMING &&
 			    internal_state.main_state != commander_state_s::MAIN_STATE_POSCTL &&
 			    ((status.data_link_lost && status_flags.gps_failure) ||
 			     (status_flags.data_link_lost_cmd && status_flags.gps_failure_cmd))) {
@@ -3055,7 +3038,6 @@ int commander_thread_main(int argc, char *argv[])
 			     internal_state.main_state == commander_state_s::MAIN_STATE_MANUAL ||
 			     internal_state.main_state == commander_state_s::MAIN_STATE_STAB ||
 			     internal_state.main_state == commander_state_s::MAIN_STATE_ALTCTL ||
-			     internal_state.main_state == commander_state_s::MAIN_STATE_HUMMING ||
 			     internal_state.main_state == commander_state_s::MAIN_STATE_POSCTL) &&
 			    ((status.rc_signal_lost && status_flags.gps_failure) ||
 			     (status_flags.rc_signal_lost_cmd && status_flags.gps_failure_cmd))) {
@@ -3444,8 +3426,8 @@ set_main_state_rc(struct vehicle_status_s *status_local, vehicle_global_position
 		 (_last_sp_man.mode_switch == sp_man.mode_switch) &&
 		 (_last_sp_man.acro_switch == sp_man.acro_switch) &&
 		 (_last_sp_man.rattitude_switch == sp_man.rattitude_switch) &&
-		 (_last_sp_man.humming_switch == sp_man.humming_switch) &&
 		 (_last_sp_man.posctl_switch == sp_man.posctl_switch) &&
+		 (_last_sp_man.humming_switch == sp_man.humming_switch) &&
 		 (_last_sp_man.loiter_switch == sp_man.loiter_switch) &&
 		 (_last_sp_man.mode_slot == sp_man.mode_slot) &&
 		 (_last_sp_man.stab_switch == sp_man.stab_switch) &&
@@ -3459,7 +3441,6 @@ set_main_state_rc(struct vehicle_status_s *status_local, vehicle_global_position
 			&& (internal_state.main_state == commander_state_s::MAIN_STATE_MANUAL ||
 			internal_state.main_state == commander_state_s::MAIN_STATE_ALTCTL ||
 			internal_state.main_state == commander_state_s::MAIN_STATE_POSCTL ||
-			internal_state.main_state == commander_state_s::MAIN_STATE_HUMMING ||
 			internal_state.main_state == commander_state_s::MAIN_STATE_ACRO ||
 			internal_state.main_state == commander_state_s::MAIN_STATE_RATTITUDE ||
 			internal_state.main_state == commander_state_s::MAIN_STATE_STAB)) {
@@ -3526,6 +3507,31 @@ set_main_state_rc(struct vehicle_status_s *status_local, vehicle_global_position
 		}
 	}
 
+	/* humming switch overrides main switch */
+	if (sp_man.humming_switch == manual_control_setpoint_s::SWITCH_POS_ON && internal_state.main_state == commander_state_s::MAIN_STATE_POSCTL) {
+		res = main_state_transition(status_local, commander_state_s::MAIN_STATE_HUMMING, main_state_prev, &status_flags, &internal_state);
+
+		if (res != TRANSITION_DENIED) {
+			return res;			
+		} 
+		print_reject_mode(status_local, "HUMMING");
+	}
+	/* humming switch off, return to POSCTL*/
+	/*if (main_state_prev == commander_state_s::MAIN_STATE_HUMMING && sp_man.humming_switch == manual_control_setpoint_s::SWITCH_POS_OFF){
+		res = main_state_transition(status_local, commander_state_s::MAIN_STATE_POSCTL, main_state_prev, &status_flags, &internal_state);
+		if (res != TRANSITION_DENIED){
+			return res;
+		}
+		print_reject_mode(status_local, "POSITION CONTROL");
+	}*/
+	if (sp_man.humming_switch == manual_control_setpoint_s::SWITCH_POS_ON){
+		mavlink_log_info(&mavlink_log_pub, "[outside]humming_switch pos on");
+		mavlink_log_info(&mavlink_log_pub, "[outside] prev : %d", (int)main_state_prev);
+	}
+	else{
+		mavlink_log_info(&mavlink_log_pub, "[outside]humming_switch pos off");
+	}
+
 	/* we know something has changed - check if we are in mode slot operation */
 	if (sp_man.mode_slot != manual_control_setpoint_s::MODE_SLOT_NONE) {
 
@@ -3534,13 +3540,15 @@ set_main_state_rc(struct vehicle_status_s *status_local, vehicle_global_position
 			return TRANSITION_DENIED;
 		}
 
-		int new_mode = _flight_mode_slots[sp_man.mode_slot];
-
+		int new_mode = _flight_mode_slots[sp_man.mode_slot];		
+		
 		if (new_mode < 0) {
 			/* slot is unused */
 			res = TRANSITION_NOT_CHANGED;
 
 		} else {
+			mavlink_log_info(&mavlink_log_pub, "mode : %d", (int)new_mode);
+		
 			res = main_state_transition(status_local, new_mode, main_state_prev, &status_flags, &internal_state);
 
 			/* ensure that the mode selection does not get stuck here */
@@ -3624,7 +3632,7 @@ set_main_state_rc(struct vehicle_status_s *status_local, vehicle_global_position
 					}
 				}
 
-				if (new_mode == commander_state_s::MAIN_STATE_POSCTL) {
+				if (new_mode == commander_state_s::MAIN_STATE_POSCTL || new_mode == commander_state_s::MAIN_STATE_HUMMING) {
 
 					/* fall back to altitude control */
 					new_mode = commander_state_s::MAIN_STATE_ALTCTL;
@@ -3739,14 +3747,7 @@ set_main_state_rc(struct vehicle_status_s *status_local, vehicle_global_position
 	case manual_control_setpoint_s::SWITCH_POS_MIDDLE:		// ASSIST
 		if (sp_man.posctl_switch == manual_control_setpoint_s::SWITCH_POS_ON) {
 			res = main_state_transition(status_local, commander_state_s::MAIN_STATE_POSCTL, main_state_prev, &status_flags, &internal_state);
-			if (sp_man.humming_switch == manual_control_setpoint_s::SWITCH_POS_ON){
-				// move to humming mode
-				res = main_state_transition(status_local, commander_state_s::MAIN_STATE_HUMMING, main_state_prev, &status_flags, &internal_state);
-				if (res != TRANSITION_DENIED) {
-					break;	// changed successfully or already in this state
-				}
-				print_reject_mode(status_local, "HUMMING CONTROL");
-			}
+
 			if (res != TRANSITION_DENIED) {
 				break;	// changed successfully or already in this state
 			}
@@ -3906,6 +3907,7 @@ set_control_mode()
 		control_mode.flag_control_acceleration_enabled = false;
 		control_mode.flag_control_termination_enabled = false;
 		control_mode.flag_control_humming_enabled = false;
+
 		break;
 
 	case vehicle_status_s::NAVIGATION_STATE_STAB:
@@ -3923,6 +3925,7 @@ set_control_mode()
 		/* override is not ok in stabilized mode */
 		control_mode.flag_external_manual_override_ok = false;
 		control_mode.flag_control_humming_enabled = false;
+
 		break;
 
 	case vehicle_status_s::NAVIGATION_STATE_RATTITUDE:
@@ -3938,6 +3941,7 @@ set_control_mode()
 		control_mode.flag_control_acceleration_enabled = false;
 		control_mode.flag_control_termination_enabled = false;
 		control_mode.flag_control_humming_enabled = false;
+
 		break;
 
 	case vehicle_status_s::NAVIGATION_STATE_ALTCTL:
@@ -3953,21 +3957,7 @@ set_control_mode()
 		control_mode.flag_control_acceleration_enabled = false;
 		control_mode.flag_control_termination_enabled = false;
 		control_mode.flag_control_humming_enabled = false;
-		break;
 
-	case vehicle_status_s::NAVIGATION_STATE_POSCTL:
-		control_mode.flag_control_manual_enabled = true;
-		control_mode.flag_control_auto_enabled = false;
-		control_mode.flag_control_rates_enabled = true;
-		control_mode.flag_control_attitude_enabled = true;
-		control_mode.flag_control_rattitude_enabled = false;
-		control_mode.flag_control_altitude_enabled = true;
-		control_mode.flag_control_climb_rate_enabled = true;
-		control_mode.flag_control_position_enabled = !status.in_transition_mode;
-		control_mode.flag_control_velocity_enabled = !status.in_transition_mode;
-		control_mode.flag_control_acceleration_enabled = false;
-		control_mode.flag_control_termination_enabled = false;
-		control_mode.flag_control_humming_enabled = false;
 		break;
 
 	case vehicle_status_s::NAVIGATION_STATE_HUMMING:
@@ -3983,7 +3973,21 @@ set_control_mode()
 		control_mode.flag_control_acceleration_enabled = false;
 		control_mode.flag_control_termination_enabled = false;
 		control_mode.flag_control_humming_enabled = true;
-		mavlink_log_critical(&mavlink_log_pub, "humming is running");
+		break;
+
+	case vehicle_status_s::NAVIGATION_STATE_POSCTL:
+		control_mode.flag_control_manual_enabled = true;
+		control_mode.flag_control_auto_enabled = false;
+		control_mode.flag_control_rates_enabled = true;
+		control_mode.flag_control_attitude_enabled = true;
+		control_mode.flag_control_rattitude_enabled = false;
+		control_mode.flag_control_altitude_enabled = true;
+		control_mode.flag_control_climb_rate_enabled = true;
+		control_mode.flag_control_position_enabled = !status.in_transition_mode;
+		control_mode.flag_control_velocity_enabled = !status.in_transition_mode;
+		control_mode.flag_control_acceleration_enabled = false;
+		control_mode.flag_control_termination_enabled = false;
+		control_mode.flag_control_humming_enabled = false;
 		break;
 
 	case vehicle_status_s::NAVIGATION_STATE_AUTO_RTL:
@@ -4078,6 +4082,7 @@ set_control_mode()
 		control_mode.flag_control_manual_enabled = false;
 		control_mode.flag_control_auto_enabled = false;
 		control_mode.flag_control_offboard_enabled = true;
+		control_mode.flag_control_humming_enabled = false;
 		/*
 		 * The control flags depend on what is ignored according to the offboard control mode topic
 		 * Inner loop flags (e.g. attitude) also depend on outer loop ignore flags (e.g. position)
@@ -4094,7 +4099,6 @@ set_control_mode()
 			!offboard_control_mode.ignore_acceleration_force;
 
 		control_mode.flag_control_rattitude_enabled = false;
-		control_mode.flag_control_humming_enabled = false;
 
 		control_mode.flag_control_acceleration_enabled = !offboard_control_mode.ignore_acceleration_force &&
 		  !status.in_transition_mode;

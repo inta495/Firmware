@@ -62,6 +62,8 @@
 #include <uORB/topics/wind_estimate.h>
 #include <uORB/topics/parameter_update.h>
 #include <uORB/topics/vehicle_global_position.h>
+#include <uORB/topics/vehicle_control_mode.h>
+#include <uORB/topics/manual_control_setpoint.h>
 #include <systemlib/param/param.h>
 #include <systemlib/err.h>
 #include <systemlib/mavlink_log.h>
@@ -125,6 +127,12 @@ private:
 	int		_command_sub;
 	struct vehicle_command_s	_command;
 	
+	int 	_control_mode_sub;
+	struct vehicle_control_mode_s _control_mode;
+
+	int 	_manual_control_setpoint_sub;
+	struct manual_control_setpoint_s _manual_control_setpoint;
+
 	int		_params_sub;			/**< parameter updates subscription */
 	
 	bool 	_humming_sys_start;
@@ -189,6 +197,10 @@ Humming::Humming() :
 	_mavlink_log_pub(nullptr),
 	_command_sub(-1),
 	_command {},
+	_control_mode_sub(-1),
+	_control_mode {},
+	_manual_control_setpoint_sub(-1),
+	_manual_control_setpoint {},
 	_params_sub(-1),
 	_humming_sys_start(false),	
 	_actuators {},
@@ -409,6 +421,10 @@ Humming::task_main()
 
 	_command_sub = orb_subscribe(ORB_ID(vehicle_command));	
 
+	_control_mode_sub = orb_subscribe(ORB_ID(vehicle_control_mode));
+
+	_manual_control_setpoint_sub = orb_subscribe(ORB_ID(manual_control_setpoint));	
+
 	orb_advert_t vehicle_command_ack_pub = nullptr;
 
 	bool updated = false;
@@ -464,6 +480,16 @@ Humming::task_main()
 				ack_vehicle_command(vehicle_command_ack_pub, _command,vehicle_command_s::VEHICLE_CMD_RESULT_ACCEPTED);
 			}
 			
+			/* DEBUG ONLY */
+			orb_check(_manual_control_setpoint_sub, &updated);
+			if (updated) {
+				orb_copy(ORB_ID(manual_control_setpoint), _manual_control_setpoint_sub, &_manual_control_setpoint);
+			}
+
+			if (_manual_control_setpoint.humming_switch == manual_control_setpoint_s::SWITCH_POS_ON){
+				mavlink_log_info(&_mavlink_log_pub, "[humming] humming_switch enable");
+			}
+
 			for (uint8_t i = 0; i < 4; i++)
 			{
 				if( actuators_setpoint[i] - _actuators.control[i] > 0 ){

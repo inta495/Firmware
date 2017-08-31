@@ -331,6 +331,10 @@ int update_parameters(const ParameterHandles &parameter_handles, Parameters &par
 		PX4_WARN("%s", paramerr);
 	}
 
+	if (param_get(parameter_handles.rc_map_humming_sw, &(parameters.rc_map_humming_sw)) != OK) {
+		PX4_WARN("%s", paramerr);
+	}
+
 	if (param_get(parameter_handles.rc_map_loiter_sw, &(parameters.rc_map_loiter_sw)) != OK) {
 		PX4_WARN("%s", paramerr);
 	}
@@ -396,6 +400,11 @@ int update_parameters(const ParameterHandles &parameter_handles, Parameters &par
 	param_get(parameter_handles.rc_posctl_th, &(parameters.rc_posctl_th));
 	parameters.rc_posctl_inv = (parameters.rc_posctl_th < 0);
 	parameters.rc_posctl_th = fabsf(parameters.rc_posctl_th);
+	/* humming */
+	param_get(parameter_handles.rc_humming_th, &(parameters.rc_humming_th));
+	parameters.rc_humming_inv = (parameters.rc_humming_th < 0);
+	parameters.rc_humming_th = fabsf(parameters.rc_humming_th);
+
 	param_get(parameter_handles.rc_return_th, &(parameters.rc_return_th));
 	parameters.rc_return_inv = (parameters.rc_return_th < 0);
 	parameters.rc_return_th = fabsf(parameters.rc_return_th);

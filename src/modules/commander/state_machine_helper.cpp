@@ -380,15 +380,16 @@ main_state_transition(struct vehicle_status_s *status, main_state_t new_main_sta
 		}
 
 		break;
+
 	case commander_state_s::MAIN_STATE_HUMMING:
 	case commander_state_s::MAIN_STATE_POSCTL:
 
 		/* need at minimum local position estimate */
-		if (status_flags->condition_local_position_valid ||
+		/*if (status_flags->condition_local_position_valid ||
 		    status_flags->condition_global_position_valid) {
 			ret = TRANSITION_CHANGED;
-		}
-
+		}*/
+		ret = TRANSITION_CHANGED;
 		break;
 
 	case commander_state_s::MAIN_STATE_AUTO_LOITER:
@@ -572,7 +573,6 @@ bool set_nav_state(struct vehicle_status_s *status,
 	reset_link_loss_globals(armed, old_failsafe, rc_loss_act);
 	reset_link_loss_globals(armed, old_failsafe, data_link_loss_act);
 
-	// humming flag
 	bool is_humming = false;
 	/* evaluate main state to decide in normal (non-failsafe) mode */
 	switch (internal_state->main_state) {
@@ -617,7 +617,6 @@ bool set_nav_state(struct vehicle_status_s *status,
 		}
 
 		break;
-
 	case commander_state_s::MAIN_STATE_HUMMING:
 		is_humming = true;
 	case commander_state_s::MAIN_STATE_POSCTL: {

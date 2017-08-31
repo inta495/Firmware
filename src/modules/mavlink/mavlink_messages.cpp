@@ -170,8 +170,13 @@ void get_mavlink_mode_state(struct vehicle_status_s *status, uint8_t *mavlink_st
 		custom_mode.main_mode = PX4_CUSTOM_MAIN_MODE_ALTCTL;
 		break;
 
-	case vehicle_status_s::NAVIGATION_STATE_POSCTL:
 	case vehicle_status_s::NAVIGATION_STATE_HUMMING:
+		*mavlink_base_mode	|= MAV_MODE_FLAG_MANUAL_INPUT_ENABLED
+					   | MAV_MODE_FLAG_STABILIZE_ENABLED
+					   | MAV_MODE_FLAG_GUIDED_ENABLED; // TODO: is POSCTL GUIDED?
+		custom_mode.main_mode = PX4_CUSTOM_MAIN_MODE_HUMMING;
+		break;
+	case vehicle_status_s::NAVIGATION_STATE_POSCTL:	
 		*mavlink_base_mode	|= MAV_MODE_FLAG_MANUAL_INPUT_ENABLED
 					   | MAV_MODE_FLAG_STABILIZE_ENABLED
 					   | MAV_MODE_FLAG_GUIDED_ENABLED; // TODO: is POSCTL GUIDED?
