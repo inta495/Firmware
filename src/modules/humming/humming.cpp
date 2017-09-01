@@ -481,15 +481,15 @@ Humming::task_main()
 			}
 			
 			/* DEBUG ONLY */
-			orb_check(_manual_control_setpoint_sub, &updated);
+			/*orb_check(_control_mode_sub, &updated);
 			if (updated) {
-				orb_copy(ORB_ID(manual_control_setpoint), _manual_control_setpoint_sub, &_manual_control_setpoint);
+				orb_copy(ORB_ID(vehicle_control_mode), _control_mode_sub, &_control_mode);
 			}
 
-			if (_manual_control_setpoint.humming_switch == manual_control_setpoint_s::SWITCH_POS_ON){
-				mavlink_log_info(&_mavlink_log_pub, "[humming] humming_switch enable");
+			if (_control_mode.flag_control_humming_enabled == true){
+				mavlink_log_info(&_mavlink_log_pub, "[humming] flag humming enable is true");
 			}
-
+			*/
 			for (uint8_t i = 0; i < 4; i++)
 			{
 				if( actuators_setpoint[i] - _actuators.control[i] > 0 ){
