@@ -542,3 +542,12 @@ PARAM_DEFINE_FLOAT(MPC_TKO_RAMP_T, 0.4f);
  */
 PARAM_DEFINE_INT32(MPC_WALL_CONTACT, 0);
 
+/**
+ * Wall contact tilt vector scale
+ *
+ * @min 1
+ * @max 20
+ * @group Multicopter Position Control
+ */
+PARAM_DEFINE_FLOAT(MPC_VEC_SCALE, 3.0f);
+

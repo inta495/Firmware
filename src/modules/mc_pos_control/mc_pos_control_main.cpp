@@ -185,6 +185,7 @@ private:
 		param_t opt_recover;
 		//sagiri
 		param_t wall_contact;
+		param_t vec_scale;
 
 	}		_params_handles;		/**< handles for interesting parameters */
 
@@ -215,6 +216,7 @@ private:
 		int opt_recover;
 		//sagiri
 		int wall_contact;
+		float vec_scale;
 
 		math::Vector<3> pos_p;
 		math::Vector<3> vel_p;
@@ -269,6 +271,7 @@ private:
 
 	//sagiri
 	float wall_contact_int;
+	bool humming_flag;
 
 	bool _in_takeoff = false; /**< flag for smooth velocity setpoint takeoff ramp */
 	float _takeoff_vel_limit; /**< velocity limit value which gets ramped up */
@@ -471,6 +474,8 @@ MulticopterPositionControl::MulticopterPositionControl() :
 
 	//sagiri
 	wall_contact_int = 0.0f;
+	humming_flag = false;
+
 	_R.identity();
 	_R_setpoint.identity();
 
@@ -513,7 +518,8 @@ MulticopterPositionControl::MulticopterPositionControl() :
 	_params_handles.alt_mode = param_find("MPC_ALT_MODE");
 	_params_handles.opt_recover = param_find("VT_OPT_RECOV_EN");
 	//sagiri
-	_params_handles.wall_contact = param_find("MPC_WALL_CONTACT");		
+	_params_handles.wall_contact = param_find("MPC_WALL_CONTACT");
+	_params_handles.vec_scale = param_find("MPC_VEC_SCALE");		
 	/* fetch initial parameter values */
 	parameters_update(true);	
 }
@@ -634,8 +640,12 @@ MulticopterPositionControl::parameters_update(bool force)
 		int i;
 		param_get(_params_handles.opt_recover, &i);
 		_params.opt_recover = i;
+		//sagiri
 		param_get(_params_handles.wall_contact, &i);
 		_params.wall_contact = i;
+
+		param_get(_params_handles.vec_scale, &v);
+		_params.vec_scale = v;
 
 		/* mc attitude control parameters*/
 		/* manual control scale */
@@ -1827,11 +1837,19 @@ MulticopterPositionControl::calculate_thrust_setpoint(float dt)
 			    + _thrust_int - math::Vector<3>(0.0f, 0.0f, _params.thr_hover);
 		//sagiri
 		//warnx("vel(0) : %d", (int)(_vel(0)*1000000.0f));
+		if(humming_flag && _control_mode.flag_control_humming_enabled ){
+			humming_flag = false;
+		}
+		
 		if(_params.wall_contact && _control_mode.flag_control_humming_enabled){
+			if (!humming_flag){
+				mavlink_log_info(&_mavlink_log_pub, "[mpc] use wall_contact controller");
+				humming_flag = true;
+			}
 			//mavlink_log_info(&_mavlink_log_pub, "[mpc] use wall_contact controller");
 			if( _vel(0) < 0.75f && _vel(0) > -0.5f){
 
-				thrust_sp(0) = 0.02f * _params.vel_p(0);
+				thrust_sp(0) = 0.02f * _params.vel_p(0) * _params.vec_scale ;
 
 				if( _vel(0) < -0.1f){
 					if(wall_contact_int < thrust_sp(0)){
