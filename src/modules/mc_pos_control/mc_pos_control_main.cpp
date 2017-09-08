@@ -186,6 +186,7 @@ private:
 		//sagiri
 		param_t wall_contact;
 		param_t vec_scale;
+		param_t tilt_max_humming;
 
 	}		_params_handles;		/**< handles for interesting parameters */
 
@@ -217,6 +218,7 @@ private:
 		//sagiri
 		int wall_contact;
 		float vec_scale;
+		float tilt_max_humming;
 
 		math::Vector<3> pos_p;
 		math::Vector<3> vel_p;
@@ -519,7 +521,8 @@ MulticopterPositionControl::MulticopterPositionControl() :
 	_params_handles.opt_recover = param_find("VT_OPT_RECOV_EN");
 	//sagiri
 	_params_handles.wall_contact = param_find("MPC_WALL_CONTACT");
-	_params_handles.vec_scale = param_find("MPC_VEC_SCALE");		
+	_params_handles.vec_scale = param_find("MPC_VEC_SCALE");
+	_params_handles.tilt_max_humming = param_find("MPC_TILTMAX_HUM");		
 	/* fetch initial parameter values */
 	parameters_update(true);	
 }
@@ -646,6 +649,9 @@ MulticopterPositionControl::parameters_update(bool force)
 
 		param_get(_params_handles.vec_scale, &v);
 		_params.vec_scale = v;
+
+		param_get(_params_handles.tilt_max_humming, &_params.tilt_max_humming);
+		_params.tilt_max_humming = math::radians(_params.tilt_max_humming);
 
 		/* mc attitude control parameters*/
 		/* manual control scale */
@@ -1832,15 +1838,38 @@ MulticopterPositionControl::calculate_thrust_setpoint(float dt)
 		thrust_sp = math::Vector<3>(_pos_sp_triplet.current.a_x, _pos_sp_triplet.current.a_y, _pos_sp_triplet.current.a_z);
 
 	} else {
+
+		if(!_control_mode.flag_control_humming_enabled ){
+			humming_flag = false;
+		}
+		if(_params.wall_contact && _control_mode.flag_control_humming_enabled){
+			if (!humming_flag){
+				mavlink_log_info(&_mavlink_log_pub, "[mpc] use wall_contact controller");
+				humming_flag = true;
+			}
+			// safety condition 
+			if( _vel(0) < 5.0f && _vel(0) > -2.0f ){
+				// humming target velocity
+				_vel_sp(0) = 1.0f * _params.vec_scale ;
+			}
+			else if ( _vel(0) > 5.0f ){
+				_vel_sp(0) = 4.5f ;
+			}
+			else if ( _vel(0) < -2.0f ){
+				_vel_sp(0) = -1.5f ;
+			}
+			// outside use normal control			
+		}
+		
 		vel_err = _vel_sp - _vel;
+
 		thrust_sp = vel_err.emult(_params.vel_p) + _vel_err_d.emult(_params.vel_d)
 			    + _thrust_int - math::Vector<3>(0.0f, 0.0f, _params.thr_hover);
 		//sagiri
 		//warnx("vel(0) : %d", (int)(_vel(0)*1000000.0f));
-		if(!_control_mode.flag_control_humming_enabled ){
-			humming_flag = false;
-		}
+		
 
+		/*
 		if(_params.wall_contact && _control_mode.flag_control_humming_enabled){
 			if (!humming_flag){
 				mavlink_log_info(&_mavlink_log_pub, "[mpc] use wall_contact controller");
@@ -1871,8 +1900,8 @@ MulticopterPositionControl::calculate_thrust_setpoint(float dt)
 				_pos_sp(0) = _pos(0);
 				_vel_sp(0) = 0.0f;
 			}
-
 		}
+		*/
 	}
 
 	if (!_control_mode.flag_control_velocity_enabled && !_control_mode.flag_control_acceleration_enabled) {
@@ -1921,6 +1950,10 @@ MulticopterPositionControl::calculate_thrust_setpoint(float dt)
 
 	float tilt_max = _params.tilt_max_air;
 	float thr_max = _params.thr_max;
+
+	if(_params.wall_contact && _control_mode.flag_control_humming_enabled){
+		tilt_max = _params.tilt_max_humming;
+	}
 
 	/* filter vel_z over 1/8sec */
 	_vel_z_lp = _vel_z_lp * (1.0f - dt * 8.0f) + dt * 8.0f * _vel(2);
