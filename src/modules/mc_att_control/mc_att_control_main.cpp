@@ -516,8 +516,6 @@ MulticopterAttitudeControl::MulticopterAttitudeControl() :
 	_params_handles.board_offset[1] = param_find("SENS_BOARD_Y_OFF");
 	_params_handles.board_offset[2] = param_find("SENS_BOARD_Z_OFF");
 
-
-
 	/* fetch initial parameter values */
 	parameters_update();
 
@@ -671,7 +669,6 @@ MulticopterAttitudeControl::parameters_update()
 	param_get(_params_handles.board_offset[0], &(_params.board_offset[0]));
 	param_get(_params_handles.board_offset[1], &(_params.board_offset[1]));
 	param_get(_params_handles.board_offset[2], &(_params.board_offset[2]));
-
 	return OK;
 }
 
@@ -1022,7 +1019,7 @@ MulticopterAttitudeControl::control_attitude_rates(float dt)
 	math::Vector<3> rates_err = _rates_sp - rates;
 
 	_att_control = rates_p_scaled.emult(rates_err) +
-		       _rates_int +
+		       _rates_int + 
 		       rates_d_scaled.emult(_rates_prev - rates) / dt +
 		       _params.rate_ff.emult(_rates_sp);
 

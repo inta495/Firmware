@@ -976,6 +976,12 @@ MulticopterPositionControl::control_manual(float dt)
 		man_vel_sp(1) = math::expo_deadzone(_manual.y, _xy_vel_man_expo.get(), _hold_dz.get());
 
 		const float man_vel_hor_length = ((matrix::Vector2f)man_vel_sp.slice<2, 1>(0, 0)).length();
+		
+		//sagiri
+		//if(_params.wall_contact){
+		if(_params.wall_contact && _control_mode.flag_control_humming_enabled){
+			man_vel_sp(0) = 1.0f ;			
+		}
 
 		/* saturate such that magnitude is never larger than 1 */
 		if (man_vel_hor_length > 1.0f) {
@@ -992,8 +998,16 @@ MulticopterPositionControl::control_manual(float dt)
 
 	/* prepare cruise speed (m/s) vector to scale the velocity setpoint */
 	float vel_mag = (_velocity_hor_manual.get() < _vel_max_xy) ? _velocity_hor_manual.get() : _vel_max_xy;
+	 
 	matrix::Vector3f vel_cruise_scale(vel_mag, vel_mag, (man_vel_sp(2) > 0.0f) ? _params.vel_max_down : _params.vel_max_up);
-
+	
+	//sagiri
+	//if(_params.wall_contact){
+	if(_params.wall_contact && _control_mode.flag_control_humming_enabled){
+		vel_cruise_scale(0) = 1.0f * _params.vec_scale ;
+		vel_cruise_scale(1) = 1.0f ;
+		}
+		
 	/* setpoint in NED frame and scaled to cruise velocity */
 	man_vel_sp = matrix::Dcmf(matrix::Eulerf(0.0f, 0.0f, yaw_input_frame)) * man_vel_sp.emult(vel_cruise_scale);
 
@@ -1842,66 +1856,12 @@ MulticopterPositionControl::calculate_thrust_setpoint(float dt)
 		if(!_control_mode.flag_control_humming_enabled ){
 			humming_flag = false;
 		}
-		if(_params.wall_contact && _control_mode.flag_control_humming_enabled){
-			if (!humming_flag){
-				mavlink_log_info(&_mavlink_log_pub, "[mpc] use wall_contact controller");
-				humming_flag = true;
-			}
-			// safety condition 
-			if( _vel(0) < 5.0f && _vel(0) > -2.0f ){
-				// humming target velocity
-				_vel_sp(0) = 1.0f * _params.vec_scale ;
-			}
-			else if ( _vel(0) > 5.0f ){
-				_vel_sp(0) = 4.5f ;
-			}
-			else if ( _vel(0) < -2.0f ){
-				_vel_sp(0) = -1.5f ;
-			}
-			// outside use normal control			
-		}
 		
 		vel_err = _vel_sp - _vel;
 
 		thrust_sp = vel_err.emult(_params.vel_p) + _vel_err_d.emult(_params.vel_d)
 			    + _thrust_int - math::Vector<3>(0.0f, 0.0f, _params.thr_hover);
-		//sagiri
-		//warnx("vel(0) : %d", (int)(_vel(0)*1000000.0f));
-		
 
-		/*
-		if(_params.wall_contact && _control_mode.flag_control_humming_enabled){
-			if (!humming_flag){
-				mavlink_log_info(&_mavlink_log_pub, "[mpc] use wall_contact controller");
-				humming_flag = true;
-			}
-			//mavlink_log_info(&_mavlink_log_pub, "[mpc] use wall_contact controller");
-			if( _vel(0) < 0.75f && _vel(0) > -0.5f){
-
-				thrust_sp(0) = 0.02f * _params.vel_p(0) * _params.vec_scale ;
-
-				if( _vel(0) < -0.1f){
-					if(wall_contact_int < thrust_sp(0)){
-						wall_contact_int += 0.01f * thrust_sp(0);
-					}
-					else{
-						//warnx("2x thrust_sp(0) now");
-					}					
-				}
-				if( _vel(0) >= 0.5f && _vel(0) < 0.75f){
-					wall_contact_int -= 0.01f * thrust_sp(0);
-					//warnx("reduce velocity");
-				}
-				else{
-					wall_contact_int = 0;
-				}
-				thrust_sp(0) += wall_contact_int;
-				_thrust_int(0) = 0.0f;
-				_pos_sp(0) = _pos(0);
-				_vel_sp(0) = 0.0f;
-			}
-		}
-		*/
 	}
 
 	if (!_control_mode.flag_control_velocity_enabled && !_control_mode.flag_control_acceleration_enabled) {

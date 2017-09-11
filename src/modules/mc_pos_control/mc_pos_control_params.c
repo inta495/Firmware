@@ -556,6 +556,7 @@ PARAM_DEFINE_FLOAT(MPC_VEC_SCALE, 3.0f);
  *
  * @min 10
  * @max 30
+ * @unit m/s
  * @group Multicopter Position Control
  */
 PARAM_DEFINE_FLOAT(MPC_TILTMAX_HUM, 20.0f);
