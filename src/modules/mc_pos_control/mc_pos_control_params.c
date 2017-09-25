@@ -545,7 +545,7 @@ PARAM_DEFINE_INT32(MPC_WALL_CONTACT, 0);
 /**
  * Wall contact tilt vector scale
  *
- * @min 1
+ * @min 0
  * @max 20
  * @group Multicopter Position Control
  */

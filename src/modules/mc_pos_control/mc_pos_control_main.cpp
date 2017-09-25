@@ -274,6 +274,8 @@ private:
 	//sagiri
 	float wall_contact_int;
 	bool humming_flag;
+	bool humming_accelerate_phase;
+	bool humming_decelerate_phase;
 
 	bool _in_takeoff = false; /**< flag for smooth velocity setpoint takeoff ramp */
 	float _takeoff_vel_limit; /**< velocity limit value which gets ramped up */
@@ -477,6 +479,9 @@ MulticopterPositionControl::MulticopterPositionControl() :
 	//sagiri
 	wall_contact_int = 0.0f;
 	humming_flag = false;
+
+	humming_accelerate_phase = false;
+	humming_decelerate_phase = false;
 
 	_R.identity();
 	_R_setpoint.identity();
@@ -978,8 +983,8 @@ MulticopterPositionControl::control_manual(float dt)
 		const float man_vel_hor_length = ((matrix::Vector2f)man_vel_sp.slice<2, 1>(0, 0)).length();
 		
 		//sagiri
-		//if(_params.wall_contact){
-		if(_params.wall_contact && _control_mode.flag_control_humming_enabled){
+		if(_params.wall_contact){
+		//if(_params.wall_contact && _control_mode.flag_control_humming_enabled){
 			man_vel_sp(0) = 1.0f ;			
 		}
 
@@ -995,17 +1000,27 @@ MulticopterPositionControl::control_manual(float dt)
 
 	/* prepare yaw to rotate into NED frame */
 	float yaw_input_frame = _control_mode.flag_control_fixed_hdg_enabled ? _yaw_takeoff : _att_sp.yaw_body;
-
+	
 	/* prepare cruise speed (m/s) vector to scale the velocity setpoint */
 	float vel_mag = (_velocity_hor_manual.get() < _vel_max_xy) ? _velocity_hor_manual.get() : _vel_max_xy;
 	 
 	matrix::Vector3f vel_cruise_scale(vel_mag, vel_mag, (man_vel_sp(2) > 0.0f) ? _params.vel_max_down : _params.vel_max_up);
 	
 	//sagiri
-	//if(_params.wall_contact){
-	if(_params.wall_contact && _control_mode.flag_control_humming_enabled){
+	if(_params.wall_contact){
+	//if(_params.wall_contact && _control_mode.flag_control_humming_enabled){
 		vel_cruise_scale(0) = 1.0f * _params.vec_scale ;
 		vel_cruise_scale(1) = 1.0f ;
+
+		if( (humming_accelerate_phase == false && ( sqrtf(_vel(0) * _vel(0) + _vel(1) * _vel(1)) > ( sqrtf(vel_cruise_scale(0) * vel_cruise_scale(0) + vel_cruise_scale(1) * vel_cruise_scale(1))/2.0f ) ) )) {
+			humming_accelerate_phase = true;
+			humming_decelerate_phase = false;
+			}
+
+		if( (humming_accelerate_phase = true && ( sqrtf(_vel(0) * _vel(0) + _vel(1) * _vel(1)) < ( sqrtf(vel_cruise_scale(0) * vel_cruise_scale(0) + vel_cruise_scale(1) * vel_cruise_scale(1))/2.0f ) ) )){
+			humming_accelerate_phase = false;
+			humming_decelerate_phase = true;
+			}
 		}
 		
 	/* setpoint in NED frame and scaled to cruise velocity */
@@ -1852,11 +1867,7 @@ MulticopterPositionControl::calculate_thrust_setpoint(float dt)
 		thrust_sp = math::Vector<3>(_pos_sp_triplet.current.a_x, _pos_sp_triplet.current.a_y, _pos_sp_triplet.current.a_z);
 
 	} else {
-
-		if(!_control_mode.flag_control_humming_enabled ){
-			humming_flag = false;
-		}
-		
+	
 		vel_err = _vel_sp - _vel;
 
 		thrust_sp = vel_err.emult(_params.vel_p) + _vel_err_d.emult(_params.vel_d)
@@ -2177,6 +2188,11 @@ MulticopterPositionControl::calculate_thrust_setpoint(float dt)
 void
 MulticopterPositionControl::generate_attitude_setpoint(float dt)
 {
+	if(_params.wall_contact && _control_mode.flag_control_humming_enabled){
+		if(humming_decelerate_phase){
+			_reset_yaw_sp = true;
+		}
+	}
 	/* reset yaw setpoint to current position if needed */
 	if (_reset_yaw_sp) {
 		_reset_yaw_sp = false;
@@ -2193,6 +2209,7 @@ MulticopterPositionControl::generate_attitude_setpoint(float dt)
 		const float yaw_offset_max = yaw_rate_max / _params.mc_att_yaw_p;
 
 		_att_sp.yaw_sp_move_rate = _manual.r * yaw_rate_max;
+
 		float yaw_target = _wrap_pi(_att_sp.yaw_body + _att_sp.yaw_sp_move_rate * dt);
 		float yaw_offs = _wrap_pi(yaw_target - _yaw);
 
@@ -2205,7 +2222,7 @@ MulticopterPositionControl::generate_attitude_setpoint(float dt)
 			_att_sp.yaw_body = yaw_target;
 		}
 	}
-
+	
 	/* control throttle directly if no climb rate controller is active */
 	if (!_control_mode.flag_control_climb_rate_enabled) {
 		float thr_val = throttle_curve(_manual.z, _params.thr_hover);

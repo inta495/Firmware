@@ -193,6 +193,8 @@ private:
 	float				_thrust_sp;		/**< thrust setpoint */
 	math::Vector<3>		_att_control;	/**< attitude control vector */
 
+	//math::Vector<3>		_att_control_prev;
+
 	math::Matrix<3, 3>  _I;				/**< identity matrix */
 
 	math::Matrix<3, 3>	_board_rotation = {};	/**< rotation matrix for the orientation that the board is mounted */
@@ -245,6 +247,9 @@ private:
 
 		param_t board_offset[3];
 
+		//param_t t_rate_p_x;
+		//param_t t_rate_p_u;
+
 	}		_params_handles;		/**< handles for interesting parameters */
 
 	struct {
@@ -280,6 +285,9 @@ private:
 		int board_rotation;
 
 		float board_offset[3];
+
+		//float t_rate_p_x;
+		//float t_rate_p_u;
 
 	}		_params;
 
@@ -464,6 +472,7 @@ MulticopterAttitudeControl::MulticopterAttitudeControl() :
 	_rates_int.zero();
 	_thrust_sp = 0.0f;
 	_att_control.zero();
+	//_att_control_prev.zero();
 
 	_I.identity();
 	_board_rotation.identity();
@@ -516,6 +525,8 @@ MulticopterAttitudeControl::MulticopterAttitudeControl() :
 	_params_handles.board_offset[1] = param_find("SENS_BOARD_Y_OFF");
 	_params_handles.board_offset[2] = param_find("SENS_BOARD_Z_OFF");
 
+	//_params_handles.t_rate_p_x = param_find("T_RATE_P_X");
+	//_params_handles.t_rate_p_u = param_find("T_RATE_P_U");
 	/* fetch initial parameter values */
 	parameters_update();
 
@@ -669,6 +680,9 @@ MulticopterAttitudeControl::parameters_update()
 	param_get(_params_handles.board_offset[0], &(_params.board_offset[0]));
 	param_get(_params_handles.board_offset[1], &(_params.board_offset[1]));
 	param_get(_params_handles.board_offset[2], &(_params.board_offset[2]));
+
+	//param_get(_params_handles.t_rate_p_x , &(_params.t_rate_p_x));
+	//param_get(_params_handles.t_rate_p_u , &(_params.t_rate_p_u));
 	return OK;
 }
 
@@ -1023,8 +1037,32 @@ MulticopterAttitudeControl::control_attitude_rates(float dt)
 		       rates_d_scaled.emult(_rates_prev - rates) / dt +
 		       _params.rate_ff.emult(_rates_sp);
 
+	//warnx("rates_err : %d, %d" , (int)abs(rates_err(0)*1000000.0f) , (int)abs(rates_err(1)*1000000.0f)) ;
+	//roll
+	//float R = _params.t_rate_p_x * (_rates_sp_prev(0) - rates(0)) * (_rates_sp_prev(0) - rates(0)) - _params.t_rate_p_u*(_att_control_prev(0))*(_att_control_prev(0)) ;
+
+	/* dead zone */
+	//R = (( (rates_err(0) >=0.0f) ? rates_err(0) : -rates_err(0) ) <= 0.05f) ? 0.0f : R ;
+	//float p_new = _params.rate_p(0) + (R / ( ((R >= 0.0f) ? R : -R)   + 1)) * 0.01f * _params.rate_p(0) ; 
+	/* low pass filter */
+	//float alpha = 0.7f ;
+	//_params.rate_p(0) = _params.rate_p(0)*alpha + p_new*(1-alpha) ;
+
+	//pitch
+	//R = _params.t_rate_p_x * (_rates_sp_prev(1) - rates(1)) * (_rates_sp_prev(1) - rates(1)) - _params.t_rate_p_u*(_att_control_prev(1))*(_att_control_prev(1)) ;
+
+	/* dead zone */
+	//R = (( (rates_err(1) >=0.0f) ? rates_err(1) : -rates_err(1) ) <= 0.05f) ? 0.0f : R ;
+	//p_new = _params.rate_p(1) + (R / ( ((R >= 0.0f) ? R : -R) + 1)) * 0.01f * _params.rate_p(1) ; 
+	/* low pass filter */
+	//alpha = 0.7f ;
+	//_params.rate_p(1) = _params.rate_p(1)*alpha + p_new*(1-alpha) ;
+
+	//warnx("roll: %d, pitch: %d", (int)(_params.rate_p(0)*1000000.0f) , (int)(_params.rate_p(1)*1000000.0f) );
+
 	_rates_sp_prev = _rates_sp;
 	_rates_prev = rates;
+	//_att_control_prev = _att_control;
 
 	/* update integral only if motors are providing enough thrust to be effective */
 	if (_thrust_sp > MIN_TAKEOFF_THRUST) {
