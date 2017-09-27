@@ -187,6 +187,8 @@ private:
 		param_t wall_contact;
 		param_t vec_scale;
 		param_t tilt_max_humming;
+		param_t humming_i;
+		param_t humming_decay;
 
 	}		_params_handles;		/**< handles for interesting parameters */
 
@@ -219,6 +221,8 @@ private:
 		int wall_contact;
 		float vec_scale;
 		float tilt_max_humming;
+		float humming_i;
+		float humming_decay;
 
 		math::Vector<3> pos_p;
 		math::Vector<3> vel_p;
@@ -273,6 +277,7 @@ private:
 
 	//sagiri
 	float wall_contact_int;
+	float humming_int;
 	bool humming_flag;
 	bool humming_accelerate_phase;
 	bool humming_decelerate_phase;
@@ -478,6 +483,7 @@ MulticopterPositionControl::MulticopterPositionControl() :
 
 	//sagiri
 	wall_contact_int = 0.0f;
+	humming_int = 0.0f;
 	humming_flag = false;
 
 	humming_accelerate_phase = false;
@@ -527,7 +533,9 @@ MulticopterPositionControl::MulticopterPositionControl() :
 	//sagiri
 	_params_handles.wall_contact = param_find("MPC_WALL_CONTACT");
 	_params_handles.vec_scale = param_find("MPC_VEC_SCALE");
-	_params_handles.tilt_max_humming = param_find("MPC_TILTMAX_HUM");		
+	_params_handles.tilt_max_humming = param_find("MPC_TILTMAX_HUM");	
+	_params_handles.humming_i = param_find("MPC_HUM_I");
+	_params_handles.humming_decay = param_find("MPC_HUM_DECAY");	
 	/* fetch initial parameter values */
 	parameters_update(true);	
 }
@@ -654,6 +662,10 @@ MulticopterPositionControl::parameters_update(bool force)
 
 		param_get(_params_handles.vec_scale, &v);
 		_params.vec_scale = v;
+		param_get(_params_handles.humming_i, &v);
+		_params.humming_i = v;
+		param_get(_params_handles.humming_decay, &v);
+		_params.humming_decay = v;
 
 		param_get(_params_handles.tilt_max_humming, &_params.tilt_max_humming);
 		_params.tilt_max_humming = math::radians(_params.tilt_max_humming);
@@ -980,14 +992,13 @@ MulticopterPositionControl::control_manual(float dt)
 		man_vel_sp(0) = math::expo_deadzone(_manual.x, _xy_vel_man_expo.get(), _hold_dz.get());
 		man_vel_sp(1) = math::expo_deadzone(_manual.y, _xy_vel_man_expo.get(), _hold_dz.get());
 
+		//if(_params.wall_contact){
+		if(_params.wall_contact && _control_mode.flag_control_humming_enabled){			
+			man_vel_sp(0) = 1.0f;	
+		}	
+
 		const float man_vel_hor_length = ((matrix::Vector2f)man_vel_sp.slice<2, 1>(0, 0)).length();
 		
-		//sagiri
-		if(_params.wall_contact){
-		//if(_params.wall_contact && _control_mode.flag_control_humming_enabled){
-			man_vel_sp(0) = 1.0f ;			
-		}
-
 		/* saturate such that magnitude is never larger than 1 */
 		if (man_vel_hor_length > 1.0f) {
 			man_vel_sp(0) /= man_vel_hor_length;
@@ -1007,19 +1018,28 @@ MulticopterPositionControl::control_manual(float dt)
 	matrix::Vector3f vel_cruise_scale(vel_mag, vel_mag, (man_vel_sp(2) > 0.0f) ? _params.vel_max_down : _params.vel_max_up);
 	
 	//sagiri
-	if(_params.wall_contact){
-	//if(_params.wall_contact && _control_mode.flag_control_humming_enabled){
-		vel_cruise_scale(0) = 1.0f * _params.vec_scale ;
+	//if(_params.wall_contact){
+	if(_params.wall_contact && _control_mode.flag_control_humming_enabled){
+		//warnx("%d" , (int)(1000.0f*humming_int));
+		if(_ctrl_state.x_vel < 0.0f){
+			humming_int = humming_int + _params.humming_i*_ctrl_state.x_vel;
+		}		
+		// exponential decay
+		else{
+			humming_int = _params.humming_decay*humming_int ;
+		}		
+		humming_int = math::max( humming_int , -1.0f*_params.vec_scale );
+		vel_cruise_scale(0) = 1.0f * _params.vec_scale - humming_int;
 		vel_cruise_scale(1) = 1.0f ;
-
+		//warnx("%d" , (int)(1000000.0f*sqrtf(_vel(0) * _vel(0) + _vel(1) * _vel(1))) ) ;
 		if( (humming_accelerate_phase == false && ( sqrtf(_vel(0) * _vel(0) + _vel(1) * _vel(1)) > ( sqrtf(vel_cruise_scale(0) * vel_cruise_scale(0) + vel_cruise_scale(1) * vel_cruise_scale(1))/2.0f ) ) )) {
 			humming_accelerate_phase = true;
-			humming_decelerate_phase = false;
+			humming_decelerate_phase = false;						
 			}
 
 		if( (humming_accelerate_phase = true && ( sqrtf(_vel(0) * _vel(0) + _vel(1) * _vel(1)) < ( sqrtf(vel_cruise_scale(0) * vel_cruise_scale(0) + vel_cruise_scale(1) * vel_cruise_scale(1))/2.0f ) ) )){
 			humming_accelerate_phase = false;
-			humming_decelerate_phase = true;
+			humming_decelerate_phase = true;					
 			}
 		}
 		
@@ -2189,9 +2209,7 @@ void
 MulticopterPositionControl::generate_attitude_setpoint(float dt)
 {
 	if(_params.wall_contact && _control_mode.flag_control_humming_enabled){
-		if(humming_decelerate_phase){
-			_reset_yaw_sp = true;
-		}
+		_att_sp.yaw_body = _att_sp.yaw_body*0.99f + _yaw*0.01f;
 	}
 	/* reset yaw setpoint to current position if needed */
 	if (_reset_yaw_sp) {

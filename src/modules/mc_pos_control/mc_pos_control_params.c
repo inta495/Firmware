@@ -547,7 +547,7 @@ PARAM_DEFINE_INT32(MPC_WALL_CONTACT, 0);
  *
  * @min 0
  * @max 20
- * @group Multicopter Position Control
+ * @group Humming
  */
 PARAM_DEFINE_FLOAT(MPC_VEC_SCALE, 3.0f);
 
@@ -556,8 +556,27 @@ PARAM_DEFINE_FLOAT(MPC_VEC_SCALE, 3.0f);
  *
  * @min 10
  * @max 30
- * @unit m/s
- * @group Multicopter Position Control
+ * @unit deg
+ * @group Humming
  */
 PARAM_DEFINE_FLOAT(MPC_TILTMAX_HUM, 20.0f);
+
+/**
+ * Humming x velocity body frame integral
+ *
+ * @min 0
+ * @max 1
+ * @group Humming
+ */
+PARAM_DEFINE_FLOAT(MPC_HUM_I, 0.01f);
+
+/**
+ * Humming x velocity body frame decay rate
+ *
+ * @min 0
+ * @max 1
+ * @group Humming
+ */
+PARAM_DEFINE_FLOAT(MPC_HUM_DECAY, 0.995f);
+
 
