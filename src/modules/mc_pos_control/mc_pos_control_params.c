@@ -568,7 +568,7 @@ PARAM_DEFINE_FLOAT(MPC_TILTMAX_HUM, 20.0f);
  * @max 1
  * @group Humming
  */
-PARAM_DEFINE_FLOAT(MPC_HUM_I, 0.01f);
+PARAM_DEFINE_FLOAT(MPC_HUM_I, 0.005f);
 
 /**
  * Humming x velocity body frame decay rate
@@ -577,6 +577,6 @@ PARAM_DEFINE_FLOAT(MPC_HUM_I, 0.01f);
  * @max 1
  * @group Humming
  */
-PARAM_DEFINE_FLOAT(MPC_HUM_DECAY, 0.995f);
+PARAM_DEFINE_FLOAT(MPC_HUM_DECAY, 0.99f);
 
 

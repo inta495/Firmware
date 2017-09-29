@@ -992,17 +992,31 @@ MulticopterPositionControl::control_manual(float dt)
 		man_vel_sp(0) = math::expo_deadzone(_manual.x, _xy_vel_man_expo.get(), _hold_dz.get());
 		man_vel_sp(1) = math::expo_deadzone(_manual.y, _xy_vel_man_expo.get(), _hold_dz.get());
 
-		//if(_params.wall_contact){
-		if(_params.wall_contact && _control_mode.flag_control_humming_enabled){			
-			man_vel_sp(0) = 1.0f;	
-		}	
-
 		const float man_vel_hor_length = ((matrix::Vector2f)man_vel_sp.slice<2, 1>(0, 0)).length();
 		
 		/* saturate such that magnitude is never larger than 1 */
 		if (man_vel_hor_length > 1.0f) {
 			man_vel_sp(0) /= man_vel_hor_length;
 			man_vel_sp(1) /= man_vel_hor_length;
+		}
+
+		if(_params.wall_contact){
+		//if(_params.wall_contact && _control_mode.flag_control_humming_enabled){
+			
+			if(_ctrl_state.x_vel < 0.5f*_params.vec_scale){
+				humming_int = humming_int + (_params.humming_i*(0.5f*_params.vec_scale - _ctrl_state.x_vel));
+			}
+			humming_int = math::constrain(humming_int , 0.0f,1.0f);
+			/*else if(fabsf(_ctrl_state.x_vel) > 1.0f*_params.vec_scale){
+				humming_int = _params.humming_decay*humming_int ;
+			}
+			else{
+				humming_int = _params.humming_decay*humming_int ;
+			}*/			
+			man_vel_sp(0) = 0.5f*man_vel_sp(0) + 0.5f*humming_int;
+		}	
+		else{
+			humming_int = 0.0f;
 		}
 
 		/* reset position setpoint to current position if needed */
@@ -1014,35 +1028,15 @@ MulticopterPositionControl::control_manual(float dt)
 	
 	/* prepare cruise speed (m/s) vector to scale the velocity setpoint */
 	float vel_mag = (_velocity_hor_manual.get() < _vel_max_xy) ? _velocity_hor_manual.get() : _vel_max_xy;
-	 
+	
 	matrix::Vector3f vel_cruise_scale(vel_mag, vel_mag, (man_vel_sp(2) > 0.0f) ? _params.vel_max_down : _params.vel_max_up);
 	
-	//sagiri
-	//if(_params.wall_contact){
-	if(_params.wall_contact && _control_mode.flag_control_humming_enabled){
-		//warnx("%d" , (int)(1000.0f*humming_int));
-		if(_ctrl_state.x_vel < 0.0f){
-			humming_int = humming_int + _params.humming_i*_ctrl_state.x_vel;
-		}		
-		// exponential decay
-		else{
-			humming_int = _params.humming_decay*humming_int ;
-		}		
-		humming_int = math::max( humming_int , -1.0f*_params.vec_scale );
-		vel_cruise_scale(0) = 1.0f * _params.vec_scale - humming_int;
-		vel_cruise_scale(1) = 1.0f ;
-		//warnx("%d" , (int)(1000000.0f*sqrtf(_vel(0) * _vel(0) + _vel(1) * _vel(1))) ) ;
-		if( (humming_accelerate_phase == false && ( sqrtf(_vel(0) * _vel(0) + _vel(1) * _vel(1)) > ( sqrtf(vel_cruise_scale(0) * vel_cruise_scale(0) + vel_cruise_scale(1) * vel_cruise_scale(1))/2.0f ) ) )) {
-			humming_accelerate_phase = true;
-			humming_decelerate_phase = false;						
-			}
+	if(_params.wall_contact){
+	//if(_params.wall_contact && _control_mode.flag_control_humming_enabled){
+		vel_cruise_scale(0) = 1.0f*_params.vec_scale ;
+		vel_cruise_scale(1) = 1.0f*_params.vec_scale ;
+	} 
 
-		if( (humming_accelerate_phase = true && ( sqrtf(_vel(0) * _vel(0) + _vel(1) * _vel(1)) < ( sqrtf(vel_cruise_scale(0) * vel_cruise_scale(0) + vel_cruise_scale(1) * vel_cruise_scale(1))/2.0f ) ) )){
-			humming_accelerate_phase = false;
-			humming_decelerate_phase = true;					
-			}
-		}
-		
 	/* setpoint in NED frame and scaled to cruise velocity */
 	man_vel_sp = matrix::Dcmf(matrix::Eulerf(0.0f, 0.0f, yaw_input_frame)) * man_vel_sp.emult(vel_cruise_scale);
 
