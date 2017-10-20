@@ -31,10 +31,10 @@
 #
 ############################################################################
 px4_add_module(
-	MODULE examples__tilt_body_control
-	MAIN tilt_body_control
+	MODULE examples__tilt_body_by_vectoring
+	MAIN tilt_body_by_vectoring
 	SRCS
-		tilt_body_control.cpp		
+		tilt_body_by_vectoring.cpp		
 	DEPENDS
 		platforms__common
 	)

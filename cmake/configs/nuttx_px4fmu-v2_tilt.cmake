@@ -194,7 +194,7 @@ set(config_module_list
 	# Hardware test
 	examples/hwtest
 
-	examples/tilt_body_control
+	examples/tilt_body_by_vectoring
 )
 
 set(config_extra_builtin_cmds

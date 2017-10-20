@@ -1,0 +1,26 @@
+#!nsh
+#
+# @name Tilt Body With Thrust Vectoring
+#
+# @type TBTV
+# @class VTOL
+#
+# @output MAIN1 top left
+# @output MAIN2 top right
+# @output MAIN3 bottom left
+# @output MAIN4 bottom right
+# @output MAIN5 top left
+# @output MAIN6 top right
+# @output MAIN7 bottom left
+# @output MAIN8 bottom right
+#
+
+sh /etc/init.d/rc.vtol_defaults
+
+set MIXER TBTV
+set PWM_OUT 1234
+set PWM_RATE 400
+set PWM_AUX_RATE 400
+
+# rate must be set by group (see pwm info)
+# throttle is in the same group as servos
