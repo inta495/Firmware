@@ -48,9 +48,13 @@
 
 #include <drivers/drv_hrt.h>
 #include <mathlib/mathlib.h>
+
 #include <systemlib/param/param.h>
 #include <systemlib/pid/pid.h>
 #include <systemlib/perf_counter.h>
+#include <systemlib/circuit_breaker.h>
+
+#include <uORB/topics/actuator_armed.h>
 #include <uORB/topics/actuator_controls.h>
 #include <uORB/topics/battery_status.h>
 #include <uORB/topics/control_state.h>
@@ -60,6 +64,14 @@
 #include <uORB/topics/vehicle_control_mode.h>
 #include <uORB/topics/vehicle_rates_setpoint.h>
 #include <uORB/uORB.h>
+
+#include <systemlib/mavlink_log.h>
+#include <arch/board/board.h>
+#include <sys/ioctl.h>
+#include <drivers/device/device.h>
+#include <drivers/drv_hrt.h>
+
+#include "drivers/drv_pwm_output.h"
 
 using matrix::Eulerf;
 using matrix::Quatf;
@@ -85,11 +97,13 @@ private:
 	int		_manual_sub{-1};			/**< notification of manual control updates */
 	int		_params_sub{-1};			/**< notification of parameter updates */
 	int		_vcontrol_mode_sub{-1};		/**< vehicle status subscription */
+	int 	_actuator_armed_sub{-1};	
 
 	/* All advertise */
 	orb_advert_t	_actuators_0_pub{nullptr};		/**< actuator control group 0 setpoint */
 	orb_advert_t	_att_sp_pub{nullptr};		/**< attitude setpoint */
 	orb_advert_t	_rates_sp_pub{nullptr};		/**< rates setpoint */
+	orb_advert_t	_mavlink_log_pub;
 
 	/* All uORB topic struct */
 	actuator_controls_s			_actuators {};		/**< actuator control inputs */
@@ -98,12 +112,14 @@ private:
 	manual_control_setpoint_s		_manual {};		/**< r/c channel data */
 	vehicle_control_mode_s			_vcontrol_mode {};		/**< vehicle control mode */
 	vehicle_rates_setpoint_s		_v_rates_sp {};
+	actuator_armed_s 			_actuator_armed {};
 
 	perf_counter_t	_loop_perf;			/**< loop performance counter */
 	perf_counter_t	_nonfinite_input_perf;		/**< performance counter for non finite input */
 	perf_counter_t	_nonfinite_output_perf;		/**< performance counter for non finite output */
 
 	bool		_debug{false};				/**< if set to true, print debug output */
+	bool		_actuators_0_circuit_breaker_enabled{false};	/**< circuit breaker to suppress output */
 
 	struct {
 
@@ -151,6 +167,7 @@ private:
 	void		vehicle_control_mode_poll();
 	void		manual_control_setpoint_poll();	
 	void		battery_status_poll();
+	void		actuator_armed_poll();
 
 	/* Control function */
 	void		attitude_control(float dt);
@@ -161,6 +178,12 @@ private:
 	void		actuator_set();
 	void		actuator_set_zero();
 	
+	/* publish function */
+	void		publish_vehicle_rates_setpoint();
+
+	/* utility */
+	void		force_enable_motor();
+	void		force_disable_motor();
 	/* Main */
 	static void	task_main_trampoline(int argc, char *argv[]);
 	void		task_main();

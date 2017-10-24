@@ -1146,11 +1146,12 @@ PX4IO::task_main()
 				if (safety_param != PARAM_INVALID) {
 
 					param_get(safety_param, &safety_param_val);
-
-					if (safety_param_val == PX4IO_FORCE_SAFETY_MAGIC) {
+					
+					if (safety_param_val == PX4IO_FORCE_SAFETY_MAGIC){ 
 						/* disable IO safety if circuit breaker asked for it */
 						(void)io_reg_set(PX4IO_PAGE_SETUP, PX4IO_P_SETUP_FORCE_SAFETY_OFF, safety_param_val);
-					}
+					} 
+
 				}
 
 				/* Check if the flight termination circuit breaker has been updated */

@@ -17,15 +17,8 @@
 
 sh /etc/init.d/rc.vtol_defaults
 
-if [ $AUTOCNF == yes ]
-then
-
-fi
-
 set MIXER TBTV
-
-set PWM_OUT 12345678
-
+set PWM_OUT 1234
 set PWM_RATE 400
 set PWM_AUX_RATE 400
 
