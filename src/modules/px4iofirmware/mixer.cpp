@@ -461,7 +461,10 @@ mixer_callback(uintptr_t handle,
 	if ((pwm_limit.state == PWM_LIMIT_STATE_RAMP) || (should_arm_nothrottle && !should_arm)) {
 		if ((control_group == actuator_controls_s::GROUP_INDEX_ATTITUDE ||
 		     control_group == actuator_controls_s::GROUP_INDEX_ATTITUDE_ALTERNATE) &&
-		    control_index == actuator_controls_s::INDEX_THROTTLE) {
+		    (control_index == actuator_controls_s::INDEX_THROTTLE || 
+		     control_index == actuator_controls_s::INDEX_ROLL ||
+		     control_index == actuator_controls_s::INDEX_PITCH ||
+		     control_index == actuator_controls_s::INDEX_YAW )) {
 			/* limit the throttle output to zero during motor spinup,
 			 * as the motors cannot follow any demand yet
 			 */
@@ -473,7 +476,10 @@ mixer_callback(uintptr_t handle,
 	if (should_arm_nothrottle && !should_arm) {
 		if ((control_group == actuator_controls_s::GROUP_INDEX_ATTITUDE ||
 		     control_group == actuator_controls_s::GROUP_INDEX_ATTITUDE_ALTERNATE) &&
-		    control_index == actuator_controls_s::INDEX_THROTTLE) {
+		    (control_index == actuator_controls_s::INDEX_THROTTLE ||
+		     control_index == actuator_controls_s::INDEX_ROLL ||
+		     control_index == actuator_controls_s::INDEX_PITCH ||
+		     control_index == actuator_controls_s::INDEX_YAW )) {
 			/* mark the throttle as invalid */
 			control = NAN_VALUE;
 		}

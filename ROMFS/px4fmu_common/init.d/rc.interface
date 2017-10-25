@@ -116,7 +116,7 @@ then
 
 	if [ $FAILSAFE != none ]
 	then
-		pwm failsafe -d ${OUTPUT_DEV} ${FAILSAFE}
+		pwm failsafe -c ${PWM_OUT} -p ${FAILSAFE}
 	fi
 fi
 

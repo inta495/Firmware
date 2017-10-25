@@ -73,6 +73,8 @@
 
 #include "drivers/drv_pwm_output.h"
 
+#define NAN_VALUE	(0.0f/0.0f)
+
 using matrix::Eulerf;
 using matrix::Quatf;
 

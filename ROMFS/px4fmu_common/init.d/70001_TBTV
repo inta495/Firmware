@@ -22,12 +22,11 @@ then
 
 fi
 
-set MIXER TBTV
+set MIXER TBBV
 
-set PWM_OUT 12345678
-
+set PWM_OUT 1234
 set PWM_RATE 400
-set PWM_AUX_RATE 400
+set PWM_DISARMED 911
 
 # rate must be set by group (see pwm info)
 # throttle is in the same group as servos

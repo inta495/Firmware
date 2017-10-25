@@ -331,16 +331,17 @@ TiltBodyByVectoring::actuator_set()
 	_actuators.control[5] = z2 ;
 	_actuators.control[6] = z3 ;
 	_actuators.control[7] = z4 ;
+
 }
 
 void
 TiltBodyByVectoring::actuator_set_zero()
 {
 	/* motor */
-	_actuators.control[0] = 0.0f ;
-	_actuators.control[1] = 0.0f ;
-	_actuators.control[2] = 0.0f ;
-	_actuators.control[3] = 0.0f ;
+	_actuators.control[0] = NAN_VALUE ;
+	_actuators.control[1] = NAN_VALUE ;
+	_actuators.control[2] = NAN_VALUE ;
+	_actuators.control[3] = NAN_VALUE ;
 
 	/* tilt servo */
 	_actuators.control[4] = 0.0f ;
@@ -413,10 +414,11 @@ TiltBodyByVectoring::force_disable_motor()
 	}
 
 	ret = px4_ioctl(fd, PWM_SERVO_SET_MAX_PWM, (long unsigned int)&pwm_max_values);
-
+	/*
 	for (int i = 0; i < 4 ; i++) {
 		ret = px4_ioctl(fd, PWM_SERVO_SET(i), (unsigned long)pwm_value);
 	}
+	*/
 
 	if (ret != OK) {
 		PX4_WARN("failed setting max values");
@@ -436,6 +438,7 @@ TiltBodyByVectoring::task_main()
 {	
 	/* Wait */
 	usleep(1000*1000);
+	
 	mavlink_log_info(&_mavlink_log_pub, "[TBBV] started");
 
 	J(0,0) = 1.0f;
@@ -463,7 +466,12 @@ TiltBodyByVectoring::task_main()
 	manual_control_setpoint_poll();
 	battery_status_poll();
 	actuator_armed_poll();
-			
+	
+	//bool current_armed = false  ;
+	//bool prev_armed = true ;
+
+	//force_disable_motor();
+
 	/* wakeup source */
 	px4_pollfd_struct_t fds[2];
 
@@ -545,27 +553,44 @@ TiltBodyByVectoring::task_main()
 			}
 
 
-
+			/*
 			if (_parameters.bat_scale_en && _battery_status.scale > 0.0f)
 			{
 				for (int i = 0; i < number_of_motor; ++i)
 				{
 					_actuators.control[i] *= _battery_status.scale;					
 				}
-			}
+			}*/
 
 			/* lazily publish the setpoint only once available */
 			_actuators.timestamp = hrt_absolute_time();
 			_actuators.timestamp_sample = _ctrl_state.timestamp;
 			
 			/* calling publish function */
-			publish_vehicle_rates_setpoint();		
-			
-			if(!_actuator_armed.armed){
-				force_disable_motor();							
-			}else{
+			publish_vehicle_rates_setpoint();
+			/*
+			prev_armed = current_armed ;
+			current_armed = _actuator_armed.armed ;
+
+			if(current_armed && prev_armed){
+				//armed - armed	
+				warnx("1");						
+			}
+			else if(current_armed && !prev_armed){
+				//armed - disarmed
+				warnx("2");
 				force_enable_motor();
 			}
+			else if(!current_armed && prev_armed){
+				//disarmed - armed
+				warnx("3");
+				force_disable_motor();
+			}
+			else if(!current_armed && !prev_armed){
+				warnx("4");
+				//disarmed - disarmed
+			}*/
+
 			/* Only publish if any of the proper modes are enabled */
 			
 			if (!_actuators_0_circuit_breaker_enabled) {
